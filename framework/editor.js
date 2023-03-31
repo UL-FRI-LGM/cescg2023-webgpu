@@ -184,7 +184,7 @@ class Editor extends GUI.Panel {
     }
 
     async compile() {
-        const info = await this.device.createShaderModule({ code: this.editor.text }).compilationInfo();
+        const info = await this.device.createShaderModule({ code: this.editor.text }).getCompilationInfo();
         this.message.clear();
         const noErrors = info.messages.filter((m) => m.type === "error").length === 0;
         if (noErrors) {

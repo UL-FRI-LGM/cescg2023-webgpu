@@ -25,6 +25,11 @@
         const device = adapter && await adapter.requestDevice();
         const context = device && canvas.node.getContext("webgpu");
         if (!device) throw "WebGPU not supported.\nTry using the latest version of Google Chrome\nor Google Chrome Canary";
+        const preferredFormat = gpu.getPreferredCanvasFormat();
+        context.configure({
+            device: device,
+            format: preferredFormat,
+        });
 
         // Define WebGPU configuration and set up reconfiguration on resize
         // This is called at the end of this function
@@ -136,6 +141,9 @@ class Sample {
     /** Override me! Return an object mapping shader names to their respective codes: { [name: string]: string } */
     shaders() {}
 
+    /** Override me! */
+    resize(width, height) {}
+
     /** Override me! Implement shader reloading */
     reloadShader(shaderName, shaderCode) {}
 
@@ -155,21 +163,6 @@ class Sample {
      * @param keys string[] - A list with the values of all the keys pressed, matching KeyboardEvent.key (see https://www.toptal.com/developers/keycode/for/a)
      */
     key(type, keys) {}
-
-    /**
-     * Feel free to override me too! Or not... up to you
-     * You don't even have to call super() if you don't want to :)
-     * But if you decide not to, I really recommend that you still call context.configure
-     */
-    resize(width, height) {
-        this.context.configure({
-            alphaMode: "opaque",
-            device: this.device,
-            format: this.context.getPreferredFormat(this.adapter), // TODO remove this WebGPU-DEPRECATED way of getting the preferred format
-            //format: this.gpu.getPreferredCanvasFormat(), // TODO use this instead of the line above
-            size: [width, height], // TODO remove this WebGPU-DEPRECATED parameter! The width and height of HTMLCanvasElement are now used
-        });
-    }
 
     // Use the following methods in subclasses or elsewhere ------------------------------------------------------------
     get name() {
