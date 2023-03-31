@@ -7,10 +7,14 @@ const Loader = {
             }
         }).then((response) => response.text()).then((text) => text);
     },
+
     loadShaderCode: async (path) => {
+        path = "res/" + path;
         return this.loadText(path);
     },
+
     loadImage: async (path) => {
+        path = "res/" + path;
         return new Promise((resolve) => {
             //const img = document.createElementNS("http://www.w3.org/1999/xhtml", "img"); // TODO: Maybe use this?
             const img = document.createElement("img");
@@ -21,7 +25,9 @@ const Loader = {
             img.src = path;
         });
     },
+
     loadModel: async (path) => {
+        path = "res/" + path;
         const extension = path.split(".").pop();
 
         const acceptedFormats = ["obj", "ply"];
@@ -42,5 +48,13 @@ const Loader = {
             default:
                 return null;
         }
-    }
+    },
+
+    pingServer: async () => {
+        try {
+            return await this.loadText("ping") === "pong";
+        } catch (error) {
+            return false;
+        }
+    },
 };
