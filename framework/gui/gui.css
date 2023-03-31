@@ -1,0 +1,156 @@
+.Element {
+
+}
+
+.Text {
+    white-space: pre-wrap;
+}
+
+.Header {
+    font-size: 1.5rem;
+}
+
+.TextArea {
+    resize: none;
+    padding: 0.5em;
+    white-space: pre;
+}
+
+.List {
+
+}
+.List > * {
+    list-style: none;
+}
+.List > *::before {
+    content: "•";
+    margin-right: 0.5em;
+    font-weight: normal;
+    font-style: normal;
+ }
+.List > *.clickable:hover {
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.NamedElement {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5em;
+}
+
+.NumberBox {
+
+}
+
+.ComboBox {
+    padding: 0.25em;
+}
+
+.Image {
+
+}
+
+.Panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1em;
+}
+
+.Section {
+
+}
+.Section > :first-child {
+    border-bottom: 1px solid #e4eef4;
+}
+.Section > :first-child:hover {
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.25);
+}
+.Section > :first-child::before {
+    content: "›";
+    margin-right: 0.5em;
+}
+.Section.collapsed > :first-child::before {
+    /*content: "⌄";
+    margin-right: 0.5em;*/
+}
+.Section > :not(:first-child) {
+    margin-left: 2em;
+}
+.Section.collapsed > :not(:first-child) {
+    display: none;
+}
+
+.Window {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    font-size: 0.8rem;
+    border-radius: 0.25rem;
+    overflow: hidden;
+    background: #e4eef433;
+    border: 1px solid #006bac33;
+}
+.Window > :first-child {
+    background: #006bac33;
+    color: white;
+    padding: 0.25rem;
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+.Window > :first-child:hover {
+    cursor: grab;
+    background: rgba(255, 255, 255, 0.25);
+}
+.Window.collapsed > :first-child {
+    margin-bottom: 0;
+}
+.Window > :not(:first-child) {
+    margin: 0 1rem 0.5rem 1rem;
+}
+.Window.collapsed > :not(:first-child) {
+    display: none;
+}
+
+.Alert {
+    position: absolute;
+    gap: 0;
+    border-radius: 0.25rem;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 25vw;
+    max-width: 50vw;
+    min-height: 25vh;
+    max-height: 50vh;
+    background: #e4eef4dd;
+    border: 1px solid #006bacdd;
+    color: black;
+}
+.Alert > :first-child {
+    padding: 0.25rem;
+    text-align: center;
+    margin-bottom: 0;
+    font-size: 1.5rem;
+    background: #006bacdd;
+    color: white;
+}
+.Alert > :not(:first-child) {
+    font-size: 1rem;
+    margin: auto 1rem auto 1rem;
+    white-space: pre-wrap;
+    text-align: center;
+}
+.Alert:hover {
+    cursor: pointer;
+    outline: 0.5rem solid red;
+}
+
+.Workspace {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 0.5em;
+}
