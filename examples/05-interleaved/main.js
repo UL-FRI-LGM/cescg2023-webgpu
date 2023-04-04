@@ -15,6 +15,10 @@ const pipeline = device.createRenderPipeline({
         module,
         entryPoint: 'vertex',
         buffers: [
+            // We can use a single buffer and interleave the attributes.
+            // This enables more efficient cache usage.
+            // Note the updated offsets and stride.
+            // For easier data setup, we use floats for both attributes.
             {
                 attributes: [
                     {
@@ -44,6 +48,7 @@ const pipeline = device.createRenderPipeline({
     layout: 'auto',
 });
 
+// Create a single buffer of floats and interleave the attribute values.
 const vertices = new Float32Array([
      0.0,  0.5,     1, 0, 0, 1,
     -0.5, -0.5,     0, 1, 0, 1,
@@ -72,6 +77,7 @@ const renderPass = encoder.beginRenderPass({
     ]
 });
 renderPass.setPipeline(pipeline);
+// We need to bind only one buffer here.
 renderPass.setVertexBuffer(0, vertexBuffer);
 renderPass.draw(3);
 renderPass.end();

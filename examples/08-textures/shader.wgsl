@@ -21,6 +21,10 @@ struct Uniforms {
 }
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
+
+// The texture and sampler are added into the same bind group at different
+// binding locations. They cannot be part of the Uniforms struct, because
+// they cannot be written to a uniform buffer.
 @group(0) @binding(1) var uTexture : texture_2d<f32>;
 @group(0) @binding(2) var uSampler : sampler;
 
@@ -35,6 +39,8 @@ fn vertex(input : VertexInput) -> VertexOutput {
 @fragment
 fn fragment(input : FragmentInput) -> FragmentOutput {
     return FragmentOutput(
+        // To sample a color from a texture, we specifiy the texture,
+        // sampler and texture coordinates.
         textureSample(uTexture, uSampler, input.texcoord),
     );
 }

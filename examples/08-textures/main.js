@@ -24,12 +24,14 @@ const pipeline = device.createRenderPipeline({
                         offset: 0,
                         format: 'float32x2',
                     },
+                    // We replace the color attribute with texture coordinates.
                     {
                         shaderLocation: 1,
                         offset: 8,
                         format: 'float32x2',
                     }
                 ],
+                // We also update the stride.
                 arrayStride: 16,
             },
         ],
@@ -46,6 +48,8 @@ const pipeline = device.createRenderPipeline({
     layout: 'auto',
 });
 
+// The texture coordinates range from 0.0 to 1.0,
+// independently of the texture size.
 const vertices = new Float32Array([
      0.0,  0.5,     0.5, 1.0,
     -0.5, -0.5,     0.0, 0.0,
@@ -81,27 +85,38 @@ const uniformBuffer = device.createBuffer({
 });
 uniformBuffer.unmap();
 
+// We first fetch the image from the server and decode it asynchronously
+// to avoid any hickups during texture upload.
 const response = await fetch('brick.png');
 const blob = await response.blob();
 const image = await createImageBitmap(blob);
 
+// Then we create a texture object. We have to specify its dimensions, format,
+// and usage flags. For external images, the RENDER_ATTACHMENT usage has to be
+// specified, because WebGPU may have to perform color space conversions.
 const texture = device.createTexture({
     size: [image.width, image.height],
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
     format: 'rgba8unorm',
 });
 
+// We copy the image to the texture memory on the device. We have to specify
+// the source, destination, and size of the copy.
 device.queue.copyExternalImageToTexture(
     { source: image },
     { texture: texture },
     [image.width, image.height]
 );
 
+// To use the texture in the shader, we need a sampler object. The sampler
+// defines how the pixels in the texture are sampled and optionally interpolated.
 const sampler = device.createSampler({
     magFilter: 'nearest',
     minFilter: 'nearest',
 });
 
+// We add both the texture and the sampler to the bind group,
+// as they cannot be written to a buffer.
 const uniformBindGroup = device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),
     entries: [
