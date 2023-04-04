@@ -1,3 +1,5 @@
+// The vertex positions are hardcoded as an array. We can use the vertex stage
+// built-in variable vertex_index to access these positions.
 const positions = array<vec2f, 3>(
     vec2f( 0.0,  0.5),
     vec2f(-0.5, -0.5),
