@@ -6,7 +6,6 @@ import { TexturedTriangle } from "./samples/textured-triangle.js";
 const SAMPLES = {};
 Triangle.register(SAMPLES);
 TexturedTriangle.register(SAMPLES);
-console.log(SAMPLES);
 
 // Entry point here!
 window.addEventListener("load", () => {
