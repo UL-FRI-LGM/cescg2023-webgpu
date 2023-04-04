@@ -39,14 +39,14 @@
             canvas.node.width = width;
             canvas.node.height = height;
             activeSample.resize(width, height);
-            activeSample.update();
+            activeSample.render();
         };
         window.addEventListener("resize", () => configure());
 
         // Set up the shader editor
         const editor = new Editor(document.getElementById("editor"), device, (shaderName, shaderCode) => {
             activeSample.reloadShader(shaderName, shaderCode);
-            activeSample.update();
+            activeSample.render();
         });
 
         // Just to be sure, check if all samples extend the Sample class
@@ -63,11 +63,18 @@
 
         // Add samples to UI
         {
-            const activateSample = (sampleName) => {
-                if (activeSample) activeSample.stop();
+            const activateSample = async (sampleName) => {
                 gui.clear();
-                activeSample = new SAMPLES[sampleName](gui, gpu, adapter, device, context);
-                editor.shaders = activeSample.shaders();
+                const nextActiveSample = new SAMPLES[sampleName](gui, gpu, adapter, device, context);
+                await nextActiveSample.load();
+                for (const [shaderName, shaderCode] of Object.entries(nextActiveSample.shaders())) {
+                    nextActiveSample.reloadShader(shaderName, shaderCode);
+                }
+                nextActiveSample.init();
+                editor.shaders = nextActiveSample.shaders();
+                if (activeSample) activeSample.stop();
+                activeSample = nextActiveSample;
+                configure();
             };
             const samplesSelect = document.getElementById("samples");
             for (const sampleName of samples) {
@@ -101,9 +108,6 @@
             addSetting("Toggle GUI", () => gui.node.style.display = gui.node.style.display === "none" ? "" : "none");
             addSetting("Toggle shader editor", () => { editor.node.style.display = editor.node.style.display === "none" ? "" : "none" })
         }
-
-        // Now that everything is set up, we can configure :)
-        configure();
     }
 }
 
@@ -124,19 +128,18 @@ class Sample {
         this.device = device;
         this.context = context;
         this._animating = false;
-        for (const [shaderName, shaderCode] of Object.entries(this.shaders())) {
-            this.reloadShader(shaderName, shaderCode);
-        }
-        this.init();
     }
 
     // Override the following methods in subclasses --------------------------------------------------------------------
 
     /** Override me! */
+    async load() {}
+
+    /** Override me! */
     init() {}
 
     /** Override me! */
-    update() {}
+    render() {}
 
     /** Override me! Return an object mapping shader names to their respective codes: { [name: string]: string } */
     shaders() {}
@@ -164,7 +167,7 @@ class Sample {
      */
     key(type, keys) {}
 
-    // Use the following methods in subclasses or elsewhere ------------------------------------------------------------
+    // Call the following methods in subclasses or elsewhere ------------------------------------------------------------
     get name() {
         return this.constructor.name;
     }
@@ -176,7 +179,7 @@ class Sample {
         this._animating = true;
 
         const update = () => {
-            this.update();
+            this.render();
 
             // Unused for now TODO
             const now = performance.now();

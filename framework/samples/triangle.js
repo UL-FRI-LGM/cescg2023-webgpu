@@ -34,7 +34,7 @@ fn fs_main(@location(0) vColor: vec4<f32>) -> @location(0) vec4<f32> {
 
     SAMPLES.Triangle = class extends Sample {
         init() {
-            this._colorAttachment = {
+            this.colorAttachment = {
                 view: null, // Will be set in draw()
                 clearValue: { r: 0, g: 0, b: 0, a: 1},
                 loadOp: "clear",
@@ -51,10 +51,10 @@ fn fs_main(@location(0) vColor: vec4<f32>) -> @location(0) vec4<f32> {
             this.gui.add(window);
         }
 
-        update() {
+        render() {
             const commandEncoder = this.device.createCommandEncoder();
-            this._colorAttachment.view = this.context.getCurrentTexture().createView();
-            const renderPass = commandEncoder.beginRenderPass({ colorAttachments: [this._colorAttachment] });
+            this.colorAttachment.view = this.context.getCurrentTexture().createView();
+            const renderPass = commandEncoder.beginRenderPass({ colorAttachments: [this.colorAttachment] });
             renderPass.setPipeline(this.pipeline);
             renderPass.draw(this._vertices.value, 1, 0, 0);
             renderPass.end();

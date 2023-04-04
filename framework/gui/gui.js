@@ -159,6 +159,12 @@ GUI.List = class extends GUI.Element {
         this.items.push(li);
         this.node.appendChild(li);
     }
+    clear() {
+        this.items.length = 0;
+        while(this.node.firstChild) {
+            this.node.removeChild(this.node.firstChild);
+        }
+    }
 }
 
 GUI.ComboBox = class extends GUI.Element {
