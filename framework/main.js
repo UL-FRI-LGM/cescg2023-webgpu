@@ -108,6 +108,35 @@
             addSetting("Toggle GUI", () => gui.node.style.display = gui.node.style.display === "none" ? "" : "none");
             addSetting("Toggle shader editor", () => { editor.node.style.display = editor.node.style.display === "none" ? "" : "none" })
         }
+
+        // Set up mouse and keyboard events
+        {
+            const mouse = (type, e) => {
+                let button = e.button;
+                switch (button) {
+                    case 0: button = "left"; break;
+                    case 1: button = "middle"; break;
+                    case 2: button = "right"; break;
+                    default: return;
+                }
+                if (type === "move") button = null;
+                const rect = canvas.node.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                const isMouseOutsideOfCanvas = x < 0 || y < 0 || x >= canvas.node.width || y >= canvas.node.height;
+                if (isMouseOutsideOfCanvas && type !== "up") return;
+
+                activeSample.mouse(type, button, x, y);
+            };
+            //canvas.node.addEventListener("contextmenu", (e) => { e.preventDefault(); return false; });
+            document.body.addEventListener("mousedown", (e) => mouse("down", e));
+            document.body.addEventListener("click", (e) => mouse("click", e));
+            document.body.addEventListener("mousemove", (e) => mouse("move", e));
+            document.body.addEventListener("mouseup", (e) => mouse("up", e));
+            document.body.addEventListener("keydown", (e) => activeSample.key("down", e.key));
+            document.body.addEventListener("keyup", (e) => activeSample.key("up", e.key));
+        }
     }
 }
 
@@ -153,19 +182,18 @@ class Sample {
     /**
      * Override me! Handle mouse interactions
      * @param type "down" | "up" | "move" | "click"
-     * @param button "left" | "middle" | "right"
-     * @param keys string[] - A list with the values of all the keys pressed, matching KeyboardEvent.key (see https://www.toptal.com/developers/keycode/for/a)
+     * @param button "left" | "middle" | "right" | null (if type is "move")
      * @param x number - Mouse cursor X position on the WebGPU canvas
      * @param y number - Mouse cursor Y position on the WebGPU canvas
      */
-    mouse(type, button, keys, x, y) {}
+    mouse(type, button, x, y) {}
 
     /**
      * Override me! Handle keyboard interactions
      * @param type "down" | "up"
-     * @param keys string[] - A list with the values of all the keys pressed, matching KeyboardEvent.key (see https://www.toptal.com/developers/keycode/for/a)
+     * @param key string -The value of the key pressed, matching KeyboardEvent.key (see https://www.toptal.com/developers/keycode)
      */
-    key(type, keys) {}
+    key(type, key) {}
 
     // Call the following methods in subclasses or elsewhere ------------------------------------------------------------
     get name() {
