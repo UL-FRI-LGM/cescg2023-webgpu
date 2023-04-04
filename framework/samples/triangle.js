@@ -1,6 +1,7 @@
-{
-    const shaders = {
-        Triangle:
+import { Sample } from "../common/sample.js";
+
+const shaders = {
+  Triangle:
 `struct Output {
     @builtin(position) Position : vec4<f32>,
     @location(0) vColor : vec4<f32>
@@ -30,63 +31,62 @@ fn vs_main(@builtin(vertex_index) VertexIndex: u32) -> Output {
 fn fs_main(@location(0) vColor: vec4<f32>) -> @location(0) vec4<f32> {
     return vColor;
 }`
+  }
+
+export class Triangle extends Sample {
+    init() {
+        this.colorAttachment = {
+            view: null, // Will be set in draw()
+            clearValue: { r: 0, g: 0, b: 0, a: 1},
+            loadOp: "clear",
+            loadValue: { r: 0, g: 0, b: 0, a: 1},
+            storeOp: "store"
+        };
+
+        this._vertices = new GUI.NumberBox(3, 1000000, 1, 3, (value) => {
+            this.update();
+        });
+
+        const window = new GUI.Window("Settings");
+        window.add(new GUI.NamedElement("#vertices", this._vertices));
+        this.gui.add(window);
     }
 
-    SAMPLES.Triangle = class extends Sample {
-        init() {
-            this.colorAttachment = {
-                view: null, // Will be set in draw()
-                clearValue: { r: 0, g: 0, b: 0, a: 1},
-                loadOp: "clear",
-                loadValue: { r: 0, g: 0, b: 0, a: 1},
-                storeOp: "store"
-            };
+    render() {
+        const commandEncoder = this.device.createCommandEncoder();
+        this.colorAttachment.view = this.context.getCurrentTexture().createView();
+        const renderPass = commandEncoder.beginRenderPass({ colorAttachments: [this.colorAttachment] });
+        renderPass.setPipeline(this.pipeline);
+        renderPass.draw(this._vertices.value, 1, 0, 0);
+        renderPass.end();
+        this.device.queue.submit([commandEncoder.finish()]);
+    }
 
-            this._vertices = new GUI.NumberBox(3, 1000000, 1, 3, (value) => {
-                this.update();
-            });
+    shaders() {
+        return shaders;
+    }
 
-            const window = new GUI.Window("Settings");
-            window.add(new GUI.NamedElement("#vertices", this._vertices));
-            this.gui.add(window);
-        }
-
-        render() {
-            const commandEncoder = this.device.createCommandEncoder();
-            this.colorAttachment.view = this.context.getCurrentTexture().createView();
-            const renderPass = commandEncoder.beginRenderPass({ colorAttachments: [this.colorAttachment] });
-            renderPass.setPipeline(this.pipeline);
-            renderPass.draw(this._vertices.value, 1, 0, 0);
-            renderPass.end();
-            this.device.queue.submit([commandEncoder.finish()]);
-        }
-
-        shaders() {
-            return shaders;
-        }
-
-        reloadShader(shaderName, shaderCode) {
-            this.pipeline = this.device.createRenderPipeline({
-                layout: "auto",
-                vertex: {
-                    module: this.device.createShaderModule({
-                        code: shaderCode
-                    }),
-                    entryPoint: "vs_main"
-                },
-                fragment: {
-                    module: this.device.createShaderModule({
-                        code: shaderCode
-                    }),
-                    entryPoint: "fs_main",
-                    targets: [{
-                        format: this.gpu.getPreferredCanvasFormat()
-                    }]
-                },
-                primitive: {
-                    topology: "triangle-strip"
-                }
-            });
-        }
+    reloadShader(shaderName, shaderCode) {
+        this.pipeline = this.device.createRenderPipeline({
+            layout: "auto",
+            vertex: {
+                module: this.device.createShaderModule({
+                    code: shaderCode
+                }),
+                entryPoint: "vs_main"
+            },
+            fragment: {
+                module: this.device.createShaderModule({
+                    code: shaderCode
+                }),
+                entryPoint: "fs_main",
+                targets: [{
+                    format: this.gpu.getPreferredCanvasFormat()
+                }]
+            },
+            primitive: {
+                topology: "triangle-strip"
+            }
+        });
     }
 }
