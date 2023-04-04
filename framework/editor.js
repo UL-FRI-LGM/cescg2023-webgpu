@@ -1,7 +1,7 @@
 class Editor extends GUI.Panel {
 
     /**
-     * @param node The node of this editor. In the context of RTVis WebGPU Playground, this should be document.getElementById("editor")
+     * @param node The node of this editor
      * @param device The WebGPU device
      * @param onCompiled Callback for when a shader is compiled successfully: (shaderName: string, shaderCode: string) => void
      */
@@ -44,7 +44,7 @@ class Editor extends GUI.Panel {
                     onCompiled(name, code);
                 });
                 event.preventDefault();
-            })
+            });
 
         const content = new GUI.Panel();
             this.list = new GUI.List();
