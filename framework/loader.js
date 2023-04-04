@@ -13,15 +13,6 @@ const Loader = {
     },
 
     loadImage: async (path) => {
-        /*return new Promise((resolve) => {
-            //const img = document.createElementNS("http://www.w3.org/1999/xhtml", "img"); // TODO: Maybe use this?
-            const img = document.createElement("img");
-            img.addEventListener("load", async () => {
-                const imageBitmap = await createImageBitmap(img);
-                resolve(imageBitmap);
-            });
-            img.src = "res/images/" + path;
-        });*/
         const img = document.createElement("img");
         img.src = "res/images/" + path;
         await img.decode();
