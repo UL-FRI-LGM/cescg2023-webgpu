@@ -31,7 +31,7 @@ export class Sample {
     }
 
     /** Override me! */
-    render() {
+    render(deltaTime = 0.0) {
     }
 
     /** Override me! Return an object mapping shader names to their respective codes: { [name: string]: string } */
@@ -79,14 +79,13 @@ export class Sample {
         this.#animating = true;
 
         const update = _ => {
-            this.render();
-
             // Unused for now TODO
             const now = performance.now();
             const deltaTime = now - lastFrame;
             //this._fps.textContent = (1000 / deltaTime).toFixed(3);
-            console.log("Frame"); // TODO remove logging
             lastFrame = now;
+
+            this.render(deltaTime);
 
             if (this.#animating) requestAnimationFrame(update);
         };

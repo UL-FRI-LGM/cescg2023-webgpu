@@ -19,7 +19,7 @@ export class FirstPersonController {
     #pointerSensitivity;
 
     constructor(node, domElement, {
-        velocity = vec3.ZERO,
+        velocity = vec3.fromValues(0, 0, 0),
         acceleration = 20,
         maxSpeed = 3,
         decay = 0.9,
@@ -97,18 +97,22 @@ export class FirstPersonController {
     }
 
     #initHandlers() {
+        this.pointermoveHandler = this.#pointermoveHandler.bind(this);
+        this.keydownHandler = this.#keydownHandler.bind(this);
+        this.keyupHandler = this.#keyupHandler.bind(this);
+
         const element = this.#domElement;
         const doc = element.ownerDocument;
 
-        doc.addEventListener('keydown', this.#keydownHandler);
-        doc.addEventListener('keyup', this.#keyupHandler);
+        doc.addEventListener('keydown', this.keydownHandler);
+        doc.addEventListener('keyup', this.keyupHandler);
 
         element.addEventListener('click', _ => element.requestPointerLock());
         doc.addEventListener('pointerlockchange', _ => {
             if (doc.pointerLockElement === element) {
-                doc.addEventListener('pointermove', this.#pointermoveHandler);
+                doc.addEventListener('pointermove', this.pointermoveHandler);
             } else {
-                doc.removeEventListener('pointermove', this.#pointermoveHandler);
+                doc.removeEventListener('pointermove', this.pointermoveHandler);
             }
         });
     }
