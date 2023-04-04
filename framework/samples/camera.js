@@ -1,7 +1,8 @@
-import { mat4 } from '../../lib/gl-matrix-module.js';
+'use strict';
 
 import { Sample } from '../common/sample.js';
 import { OrbitCamera } from '../common/util/orbit-camera.js';
+import { Loader } from '../common/util/loader.js';
 
 const SHADER_NAME = 'Textured Triangle';
 
@@ -158,5 +159,10 @@ export class Camera extends Sample {
                 ],
             },
         });
+    }
+
+    stop() {
+        super.stop();
+        this.camera.dispose();
     }
 }

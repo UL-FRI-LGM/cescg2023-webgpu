@@ -98,9 +98,12 @@ async function main(gui) {
             option.textContent = sampleName;
             samplesSelect.appendChild(option);
         }
-        samplesSelect.addEventListener('change', () => activateSample(samplesSelect.value));
+        samplesSelect.addEventListener('change', _ => {
+            activeSample.stop();
+            activateSample(samplesSelect.value);
+        });
         samplesSelect.value = samples[0];
-        activateSample(samplesSelect.value);
+        await activateSample(samplesSelect.value);
     }
 
     // Add settings to UI

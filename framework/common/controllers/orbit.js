@@ -49,9 +49,10 @@ export class OrbitController {
         this.pointerdownHandler = this.#pointerdownHandler.bind(this);
         this.pointerupHandler = this.#pointerupHandler.bind(this);
         this.pointermoveHandler = this.#pointermoveHandler.bind(this);
+        this.wheelHandler = this.#wheelHandler.bind(this);
 
         this.#domElement.addEventListener('pointerdown', this.pointerdownHandler);
-        this.#domElement.addEventListener('wheel', e => this.#wheelHandler(e));
+        this.#domElement.addEventListener('wheel', this.wheelHandler);
     }
 
     #pointerdownHandler(e) {
@@ -86,5 +87,12 @@ export class OrbitController {
 
     #wheelHandler(e) {
         this.#distance *= Math.exp(this.#zoomSensitivity * e.deltaY);
+    }
+
+    dispose() {
+        this.#domElement.removeEventListener('pointerdown', this.pointerdownHandler);
+        this.#domElement.removeEventListener('pointerup', this.pointerupHandler);
+        this.#domElement.removeEventListener('pointermove', this.pointermoveHandler);
+        this.#domElement.removeEventListener('wheel', this.wheelHandler);
     }
 }

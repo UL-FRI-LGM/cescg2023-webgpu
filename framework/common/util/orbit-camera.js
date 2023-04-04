@@ -29,4 +29,8 @@ export class OrbitCamera {
     get projection() {
         return this.#camera.getComponentOfType(Camera).projectionMatrix;
     }
+
+    dispose() {
+        this.#camera.getComponentOfType(OrbitController).dispose();
+    }
 }

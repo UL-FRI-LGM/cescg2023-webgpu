@@ -1,25 +1,27 @@
-const Loader = {
-    loadText: async (path) => {
-        return fetch(path, {
+'use strict';
+
+export class Loader {
+    static async loadText(path) {
+        return (await fetch(path, {
             method: "GET",
             headers: {
                 "Content-Type": "text/plain"
             }
-        }).then((response) => response.text()).then((text) => text);
-    },
+        })).text();
+    }
 
-    loadShaderCode: async (path) => {
+    static async loadShaderCode(path) {
         return Loader.loadText("res/shaders/" + path);
-    },
+    }
 
-    loadImage: async (path) => {
+    static async loadImage(path) {
         const img = document.createElement("img");
         img.src = "res/images/" + path;
         await img.decode();
         return await createImageBitmap(img);
-    },
+    }
 
-    loadModel: async (path) => {
+    static async loadModel(path) {
         const extension = path.split(".").pop();
 
         const acceptedExtensions = ["obj", "ply"];
@@ -40,13 +42,13 @@ const Loader = {
             default:
                 return null;
         }
-    },
+    }
 
-    pingServer: async () => {
+    static async pingServer() {
         try {
             return await Loader.loadText("ping") === "pong";
         } catch (error) {
             return false;
         }
-    },
-};
+    }
+}

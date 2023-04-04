@@ -1,4 +1,7 @@
-import {Sample} from "../common/sample.js";
+'use strict';
+
+import { Sample } from '../common/sample.js';
+import { Loader } from '../common/util/loader.js';
 
 const SAMPLE_NAME = "Textured Triangle";
 const SHADER_NAME = "Textured Triangle";
@@ -94,10 +97,6 @@ export class TexturedTriangle extends Sample {
             loadValue: {r: 0, g: 0, b: 0, a: 1},
             storeOp: "store"
         };
-
-        //const window = new GUI.Window("Settings");
-        //window.add(new GUI.NamedElement("#vertices", this._vertices));
-        //this.gui.add(window);
     }
 
     render() {

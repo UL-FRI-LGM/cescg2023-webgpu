@@ -1,7 +1,7 @@
 'use strict';
 
-import {Sample} from '../common/sample.js';
-
+import { Sample } from '../common/sample.js';
+import { Loader } from '../common/util/loader.js';
 
 const SAMPLE_NAME = 'Model Explorer';
 const SHADER_NAME = 'Model Explorer';

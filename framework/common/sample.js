@@ -2,6 +2,7 @@
 
 export class Sample {
     #animating;
+    #animationFrameRequest = null;
 
     /**
      * Overriding this is not recommended
@@ -17,7 +18,7 @@ export class Sample {
         this.device = device;
         this.context = context;
         this.canvas = canvas;
-        this.#animating = true;
+        this.#animating = false;
     }
 
     // Override the following methods in subclasses --------------------------------------------------------------------
@@ -75,7 +76,7 @@ export class Sample {
     }
 
     animate() {
-        if (!this.#animating) return;
+        if (this.#animating) return;
         this.#animating = true;
 
         const update = _ => {
@@ -87,15 +88,21 @@ export class Sample {
 
             this.render(deltaTime);
 
-            if (this.#animating) requestAnimationFrame(update);
+            if (this.#animating) {
+                this.#animationFrameRequest = requestAnimationFrame(update);
+            }
         };
 
         let lastFrame = performance.now();
-        requestAnimationFrame(update);
+        update();
     }
 
     stop() {
         this.#animating = false;
+        if (this.#animationFrameRequest !== null) {
+            cancelAnimationFrame(this.#animationFrameRequest);
+            this.#animationFrameRequest = null;
+        }
     }
 
     static register(samples) {
