@@ -1,81 +1,81 @@
 'use strict';
 
 export class Node {
-  #children;
-  #parent;
-  #components;
-  
-  constructor() {
-    this.#children = [];
-    this.#parent = null;
+    #children;
+    #parent;
+    #components;
 
-    this.#components = [];
-  }
+    constructor() {
+        this.#children = [];
+        this.#parent = null;
 
-  addChild(node) {
-    if (node.parent) {
-      node.parent.removeChild(node);
+        this.#components = [];
     }
 
-    this.#children.push(node);
-    node.parent = this;
-  }
+    addChild(node) {
+        if (node.parent) {
+            node.parent.removeChild(node);
+        }
 
-  removeChild(node) {
-    const index = this.#children.indexOf(node);
-    if (index >= 0) {
-      this.#children.splice(index, 1);
-      node.parent = null;
+        this.#children.push(node);
+        node.parent = this;
     }
-  }
 
-  traverse(before, after) {
-    if (before) {
-      before(this);
+    removeChild(node) {
+        const index = this.#children.indexOf(node);
+        if (index >= 0) {
+            this.#children.splice(index, 1);
+            node.parent = null;
+        }
     }
-    for (const child of this.#children) {
-      child.traverse(before, after);
+
+    traverse(before, after) {
+        if (before) {
+            before(this);
+        }
+        for (const child of this.#children) {
+            child.traverse(before, after);
+        }
+        if (after) {
+            after(this);
+        }
     }
-    if (after) {
-      after(this);
+
+    linearize() {
+        const array = [];
+        this.traverse(node => array.push(node));
+        return array;
     }
-  }
 
-  linearize() {
-    const array = [];
-    this.traverse(node => array.push(node));
-    return array;
-  }
+    filter(predicate) {
+        return this.linearize().filter(predicate);
+    }
 
-  filter(predicate) {
-    return this.linearize().filter(predicate);
-  }
+    find(predicate) {
+        return this.linearize().find(predicate);
+    }
 
-  find(predicate) {
-    return this.linearize().find(predicate);
-  }
+    map(transform) {
+        return this.linearize().map(transform);
+    }
 
-  map(transform) {
-    return this.linearize().map(transform);
-  }
+    addComponent(component) {
+        this.#components.push(component);
+    }
 
-  addComponent(component) {
-    this.#components.push(component);
-  }
+    removeComponent(component) {
+        this.#components = this.#components.filter(c => c !== component);
+    }
 
-  removeComponent(component) {
-    this.#components = this.#components.filter(c => c !== component);
-  }
+    removeComponentOfType(type) {
+        this.#components = this.#components.filter(component => !(component instanceof type));
+    }
 
-  removeComponentOfType(type) {
-    this.#components = this.#components.filter(component => !(component instanceof type));
-  }
+    getComponentOfType(type) {
+        return this.#components.find(component => component instanceof type);
+    }
 
-  getComponentOfType(type) {
-    return this.#components.find(component => component instanceof type);
-  }
-
-  getComponentsOfType(type) {
-    return this.#components.filter(component => component instanceof type);
-  }
+    getComponentsOfType(type) {
+        return this.#components.filter(component => component instanceof type);
+    }
 }

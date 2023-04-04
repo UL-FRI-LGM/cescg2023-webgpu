@@ -1,86 +1,86 @@
 'use strict';
 
-import { quat, vec3 } from '../../../lib/gl-matrix-module.js';
-import { Transform } from '../core/transform.js';
+import {quat, vec3} from '../../../lib/gl-matrix-module.js';
+import {Transform} from '../core/transform.js';
 
 export class OrbitController {
-  #node;
-  #domElement;
-  
-  #pitch = 0;
-  #yaw = 0;
-  #distance = 2;
-  
-  #moveSensitivity;
-  #zoomSensitivity;
-  
-  constructor(node, domElement, { moveSensitivity = 0.004, zoomSensitivity = 0.002 } = {}) {
-    this.#node = node;
-    this.#domElement = domElement;
+    #node;
+    #domElement;
 
-    this.#pitch = 0;
-    this.#yaw = 0;
-    this.#distance = 2;
+    #pitch = 0;
+    #yaw = 0;
+    #distance = 2;
 
-    this.#moveSensitivity = 0.004;
-    this.#zoomSensitivity = 0.002;
+    #moveSensitivity;
+    #zoomSensitivity;
 
-    this.#initHandlers();
-  }
+    constructor(node, domElement, {moveSensitivity = 0.004, zoomSensitivity = 0.002} = {}) {
+        this.#node = node;
+        this.#domElement = domElement;
 
-  update() {
-    const transform = this.#node.getComponentOfType(Transform);
-    if (!transform) {
-      return;
+        this.#pitch = 0;
+        this.#yaw = 0;
+        this.#distance = 2;
+
+        this.#moveSensitivity = 0.004;
+        this.#zoomSensitivity = 0.002;
+
+        this.#initHandlers();
     }
 
-    const rotation = quat.create();
-    quat.rotateY(rotation, rotation, this.#yaw);
-    quat.rotateX(rotation, rotation, this.#pitch);
-    transform.rotation = rotation;
+    update() {
+        const transform = this.#node.getComponentOfType(Transform);
+        if (!transform) {
+            return;
+        }
 
-    const translation = [0, 0, this.#distance];
-    vec3.rotateX(translation, translation, [0, 0, 0], this.#pitch);
-    vec3.rotateY(translation, translation, [0, 0, 0], this.#yaw);
-    transform.translation = translation;
-  }
+        const rotation = quat.create();
+        quat.rotateY(rotation, rotation, this.#yaw);
+        quat.rotateX(rotation, rotation, this.#pitch);
+        transform.rotation = rotation;
 
-  #initHandlers() {
-    this.#domElement.addEventListener('pointerdown', this.#pointerdownHandler);
-    this.#domElement.addEventListener('wheel', this.#wheelHandler);
-  }
+        const translation = [0, 0, this.#distance];
+        vec3.rotateX(translation, translation, [0, 0, 0], this.#pitch);
+        vec3.rotateY(translation, translation, [0, 0, 0], this.#yaw);
+        transform.translation = translation;
+    }
 
-  #pointerdownHandler(e) {
-    this.#domElement.setPointerCapture(e.pointerId);
-    this.#domElement.requestPointerLock();
-    this.#domElement.removeEventListener('pointerdown', this.#pointerdownHandler);
-    this.#domElement.addEventListener('pointerup', this.#pointerupHandler);
-    this.#domElement.addEventListener('pointermove', this.#pointermoveHandler);
-  }
+    #initHandlers() {
+        this.#domElement.addEventListener('pointerdown', this.#pointerdownHandler);
+        this.#domElement.addEventListener('wheel', this.#wheelHandler);
+    }
 
-  #pointerupHandler(e) {
-    this.#domElement.releasePointerCapture(e.pointerId);
-    this.#domElement.ownerDocument.exitPointerLock();
-    this.#domElement.addEventListener('pointerdown', this.#pointerdownHandler);
-    this.#domElement.removeEventListener('pointerup', this.#pointerupHandler);
-    this.#domElement.removeEventListener('pointermove', this.#pointermoveHandler);
-  }
+    #pointerdownHandler(e) {
+        this.#domElement.setPointerCapture(e.pointerId);
+        this.#domElement.requestPointerLock();
+        this.#domElement.removeEventListener('pointerdown', this.#pointerdownHandler);
+        this.#domElement.addEventListener('pointerup', this.#pointerupHandler);
+        this.#domElement.addEventListener('pointermove', this.#pointermoveHandler);
+    }
 
-  #pointermoveHandler(e) {
-    const dx = e.movementX;
-    const dy = e.movementY;
+    #pointerupHandler(e) {
+        this.#domElement.releasePointerCapture(e.pointerId);
+        this.#domElement.ownerDocument.exitPointerLock();
+        this.#domElement.addEventListener('pointerdown', this.#pointerdownHandler);
+        this.#domElement.removeEventListener('pointerup', this.#pointerupHandler);
+        this.#domElement.removeEventListener('pointermove', this.#pointermoveHandler);
+    }
 
-    this.#pitch -= dy * this.#moveSensitivity;
-    this.#yaw   -= dx * this.#moveSensitivity;
+    #pointermoveHandler(e) {
+        const dx = e.movementX;
+        const dy = e.movementY;
 
-    const twopi = Math.PI * 2;
-    const halfpi = Math.PI / 2;
+        this.#pitch -= dy * this.#moveSensitivity;
+        this.#yaw -= dx * this.#moveSensitivity;
 
-    this.#pitch = Math.min(Math.max(this.#pitch, -halfpi), halfpi);
-    this.#yaw = ((this.#yaw % twopi) + twopi) % twopi;
-  }
+        const twopi = Math.PI * 2;
+        const halfpi = Math.PI / 2;
 
-  #wheelHandler(e) {
-    this.#distance *= Math.exp(this.#zoomSensitivity * e.deltaY);
-  }
+        this.#pitch = Math.min(Math.max(this.#pitch, -halfpi), halfpi);
+        this.#yaw = ((this.#yaw % twopi) + twopi) % twopi;
+    }
+
+    #wheelHandler(e) {
+        this.#distance *= Math.exp(this.#zoomSensitivity * e.deltaY);
+    }
 }
