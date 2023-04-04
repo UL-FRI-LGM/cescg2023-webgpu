@@ -22,11 +22,11 @@ export class Camera extends Sample {
 
         // Set images
         images.brick = res[1];
-
-        this.camera = new OrbitCamera(this.canvas);
     }
 
     init() {
+        this.camera = new OrbitCamera(this.canvas);
+
         // Set brick texture
         const image = images.brick;
         const texture = this.device.createTexture({
@@ -95,10 +95,6 @@ export class Camera extends Sample {
             loadValue: {r: 0, g: 0, b: 0, a: 1},
             storeOp: 'store'
         };
-
-        //const window = new GUI.Window('Settings');
-        //window.add(new GUI.NamedElement('#vertices', this._vertices));
-        //this.gui.add(window);
 
         this.animate();
     }
