@@ -1,15 +1,18 @@
 import { Sample } from './common/sample.js';
 import { Triangle } from "./samples/triangle.js";
 import { TexturedTriangle } from "./samples/textured-triangle.js";
+import {Camera} from "./samples/camera.js";
 
 // Object mapping the sample name to the sample class
 const SAMPLES = {};
 Triangle.register(SAMPLES);
 TexturedTriangle.register(SAMPLES);
+Camera.register(SAMPLES);
 
 // Entry point here!
 window.addEventListener("load", () => {
     const gui = new GUI.Workspace(document.getElementById("gui"));
+    gui.node.style.display = 'none';
 
     main(gui)
         //.then(() => console.log("Successfully initialized!"))
@@ -72,7 +75,7 @@ async function main(gui) {
     {
         const activateSample = async (sampleName) => {
             gui.clear();
-            const nextActiveSample = new SAMPLES[sampleName](gui, gpu, adapter, device, context);
+            const nextActiveSample = new SAMPLES[sampleName](gui, gpu, adapter, device, context, canvas.node);
             await nextActiveSample.load();
             for (const [shaderName, shaderCode] of Object.entries(nextActiveSample.shaders())) {
                 nextActiveSample.reloadShader(shaderName, shaderCode);
@@ -116,6 +119,6 @@ async function main(gui) {
         addSetting("Toggle GUI", () => gui.node.style.display = gui.node.style.display === "none" ? "" : "none");
         addSetting("Toggle shader editor", () => {
             editor.node.style.display = editor.node.style.display === "none" ? "" : "none"
-        })
+        });
     }
 }

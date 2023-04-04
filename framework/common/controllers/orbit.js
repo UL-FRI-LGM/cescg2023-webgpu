@@ -46,24 +46,28 @@ export class OrbitController {
     }
 
     #initHandlers() {
-        this.#domElement.addEventListener('pointerdown', this.#pointerdownHandler);
-        this.#domElement.addEventListener('wheel', this.#wheelHandler);
+        this.pointerdownHandler = this.#pointerdownHandler.bind(this);
+        this.pointerupHandler = this.#pointerupHandler.bind(this);
+        this.pointermoveHandler = this.#pointermoveHandler.bind(this);
+
+        this.#domElement.addEventListener('pointerdown', this.pointerdownHandler);
+        this.#domElement.addEventListener('wheel', e => this.#wheelHandler(e));
     }
 
     #pointerdownHandler(e) {
         this.#domElement.setPointerCapture(e.pointerId);
         this.#domElement.requestPointerLock();
-        this.#domElement.removeEventListener('pointerdown', this.#pointerdownHandler);
-        this.#domElement.addEventListener('pointerup', this.#pointerupHandler);
-        this.#domElement.addEventListener('pointermove', this.#pointermoveHandler);
+        this.#domElement.removeEventListener('pointerdown', this.pointerdownHandler);
+        this.#domElement.addEventListener('pointerup', this.pointerupHandler);
+        this.#domElement.addEventListener('pointermove', this.pointermoveHandler);
     }
 
     #pointerupHandler(e) {
         this.#domElement.releasePointerCapture(e.pointerId);
         this.#domElement.ownerDocument.exitPointerLock();
-        this.#domElement.addEventListener('pointerdown', this.#pointerdownHandler);
-        this.#domElement.removeEventListener('pointerup', this.#pointerupHandler);
-        this.#domElement.removeEventListener('pointermove', this.#pointermoveHandler);
+        this.#domElement.addEventListener('pointerdown', this.pointerdownHandler);
+        this.#domElement.removeEventListener('pointerup', this.pointerupHandler);
+        this.#domElement.removeEventListener('pointermove', this.pointermoveHandler);
     }
 
     #pointermoveHandler(e) {

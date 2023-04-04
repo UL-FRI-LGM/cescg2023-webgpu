@@ -10,13 +10,14 @@ export class Sample {
      * @param device WebGPU device
      * @param context WebGPU context of HTMLCanvasElement
      */
-    constructor(gui, gpu, adapter, device, context) {
+    constructor(gui, gpu, adapter, device, context, canvas) {
         this.gui = gui;
         this.gpu = gpu;
         this.adapter = adapter;
         this.device = device;
         this.context = context;
-        this.#animating = false;
+        this.canvas = canvas;
+        this.#animating = true;
     }
 
     // Override the following methods in subclasses --------------------------------------------------------------------
@@ -74,7 +75,7 @@ export class Sample {
     }
 
     animate() {
-        if (this.#animating) return;
+        if (!this.#animating) return;
         this.#animating = true;
 
         const update = _ => {
