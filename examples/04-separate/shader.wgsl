@@ -1,3 +1,6 @@
+// Both vertex attributes now come from buffers.
+// We use locations 0 and 1 to refer to them from JavaScript.
+
 struct VertexInput {
     @location(0) position : vec2f,
     @location(1) color : vec4f,

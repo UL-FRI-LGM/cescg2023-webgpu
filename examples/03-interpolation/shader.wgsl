@@ -1,14 +1,20 @@
+// In this example we are structuring the vertex and fragment shader
+// inputs and outputs so that the code is cleaner and more readable.
+
 struct VertexInput {
     @builtin(vertex_index) vertexIndex : u32,
 }
 
 struct VertexOutput {
     @builtin(position) position : vec4f,
+    // We are outputting vertex colors to the interpolant location 0.
     @location(0) color : vec4f,
 }
 
 struct FragmentInput {
     @builtin(position) position : vec4f,
+    // The colors from the shaders then get interpolated by the hardware
+    // and passed to the fragment shader using the same interpolant location.
     @location(0) color : vec4f,
 }
 

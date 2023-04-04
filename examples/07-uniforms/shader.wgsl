@@ -20,6 +20,13 @@ struct Uniforms {
     offset : vec2f,
 }
 
+// The uniforms are organized into groups. The groups often correspond to
+// how frequently certain data changes. For example, the camera transformation
+// is usually the same for all models. The model transformation changes for
+// every model. Material data may change multiple times for a single model.
+
+// We add the uniforms as a uniform variable at the binding location 0
+// in the group 0.
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 
 @vertex

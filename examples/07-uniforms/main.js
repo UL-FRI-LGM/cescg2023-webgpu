@@ -43,6 +43,7 @@ const pipeline = device.createRenderPipeline({
             }
         ],
     },
+    // The layout is still created automatically. It includes the bind groups.
     layout: 'auto',
 });
 
@@ -74,6 +75,8 @@ const indexBuffer = device.createBuffer({
 new Uint16Array(indexBuffer.getMappedRange()).set(indices);
 indexBuffer.unmap();
 
+// We create a uniform buffer with the UNIFORM usage flag.
+// It is large enough to hold two 32-bit floats.
 const uniformBuffer = device.createBuffer({
     size: 8,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -81,7 +84,12 @@ const uniformBuffer = device.createBuffer({
 });
 uniformBuffer.unmap();
 
+// To bind resources to the shader, we need to create a bind group for every
+// group specified in the shader. Here we use a single bind group and bind
+// the uniform buffer to the binding location 0, as specified in the shader.
 const uniformBindGroup = device.createBindGroup({
+    // The layout for the bind group can be queried from the pipeline, but
+    // it is less error-prone and more efficient to create it explicitly.
     layout: pipeline.getBindGroupLayout(0),
     entries: [
         {
@@ -97,6 +105,7 @@ const uniforms = {
 };
 
 function render() {
+    // First, we update the uniform buffer with the updated data.
     const uniformArray = new Float32Array([uniforms.offsetX, uniforms.offsetY]);
     device.queue.writeBuffer(uniformBuffer, 0, uniformArray);
 
@@ -113,6 +122,7 @@ function render() {
         ]
     });
     renderPass.setPipeline(pipeline);
+    // Here we set the bind group for this draw command.
     renderPass.setBindGroup(0, uniformBindGroup);
     renderPass.setVertexBuffer(0, vertexBuffer);
     renderPass.setIndexBuffer(indexBuffer, 'uint16');
