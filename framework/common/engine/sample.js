@@ -3,6 +3,7 @@
 export class Sample {
     #animating;
     #animationFrameRequest = null;
+    #eventHandlers;
 
     /**
      * Overriding this is not recommended
@@ -19,6 +20,16 @@ export class Sample {
         this.context = context;
         this.canvas = canvas;
         this.#animating = false;
+
+        // todo: add pointerevent handlers
+        this.#eventHandlers = {
+            'keydown': e => this.key('down', e.key),
+            'keyup': e => this.key('up', e.key),
+        };
+        for (const [eventName, handler] of Object.entries(this.#eventHandlers)) {
+            // todo: this should be this.canvas but for some reason it does not receive any events
+            document.body.addEventListener(eventName, handler);
+        }
     }
 
     // Override the following methods in subclasses --------------------------------------------------------------------
@@ -102,6 +113,9 @@ export class Sample {
         if (this.#animationFrameRequest !== null) {
             cancelAnimationFrame(this.#animationFrameRequest);
             this.#animationFrameRequest = null;
+        }
+        for (const [eventName, handler] of Object.entries(this.#eventHandlers)) {
+            this.canvas.removeEventListener(eventName, handler);
         }
     }
 

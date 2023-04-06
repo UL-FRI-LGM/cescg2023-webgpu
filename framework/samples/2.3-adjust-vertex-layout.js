@@ -6,17 +6,19 @@ import { Loader } from '../common/engine/util/loader.js';
 // Task 2.2: import the OrbitCamera class
 import { OrbitCamera } from '../common/engine/util/orbit-camera.js';
 
-const SHADER_NAME = 'Camera';
+// Task 2.3: import mat4 for our model matrix
+import { mat4 } from '../../lib/gl-matrix-module.js';
+
+const SHADER_NAME = 'Adjust Vertex Layout';
 
 const shaders = {};
 const images = {};
 
-export class Camera extends Sample {
-    // todo: having a load and an init method which both do initialization work is confusing
+export class AdjustedVertexLayout extends Sample {
     async load() {
         // Load resources
         const res = await Promise.all([
-            Loader.loadShaderCode('camera.wgsl'),
+            Loader.loadShaderCode('adjust-vertex-layout.wgsl'),
             Loader.loadImage('brick.png')
         ]);
 
@@ -51,10 +53,20 @@ export class Camera extends Sample {
         });
 
         // Prepare vertex buffer
+        // Task 2.3: each vertex now has a position (vec3f), a normal (vec3f), and texture coordinates (vec2f)
         const vertices = new Float32Array([
-            0.0, 0.5, 0.5, 1.0,
-            -0.5, -0.5, 0.0, 0.0,
-            0.5, -0.5, 1.0, 0.0,
+            // top vertex
+            0.0, 0.5, 0.0,      // position
+            0.0, 0.0, 0.0,      // normal (we leave this as zeros for now)
+            0.5, 1.0,           // texture coordinates
+            // left vertex
+            -0.5, -0.5, 0.0,    // position
+            0.0, 0.0, 0.0,      // normal (we leave this as zeros for now)
+            0.0, 0.0,           // texture coordinates
+            // right vertex
+            0.5, -0.5, 0.0,     // position
+            0.0, 0.0, 0.0,      // normal (we leave this as zeros for now)
+            1.0, 0.0,           // texture coordinates
         ]);
         this.vertexBuffer = this.device.createBuffer({
             size: vertices.byteLength,
@@ -78,8 +90,8 @@ export class Camera extends Sample {
 
         // Prepare uniform buffer
         this.uniformBuffer = this.device.createBuffer({
-            // Task 2.3: adjust the uniform buffer's size to hold two 4x4 matrices and a vec2
-            size: 144,
+            // Task 2.3: adjust the uniform buffer's size to hold three 4x4 matrices instead of two matrices and a vec2
+            size: 192,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
 
@@ -101,15 +113,16 @@ export class Camera extends Sample {
             storeOp: 'store'
         };
 
-        // todo: not sure if that's not too cumbersome - I think the norm is an animated sample, not a static one
         this.animate();
     }
 
     render() {
         // TASK 2.2: update the camera and upload its view and projection matrices to our uniform buffer
         this.camera.update();
+        // TASK 2.3: replace the triangle's offsets with a transformation matrix (we just use the identity matrix here)
+        const modelMatrix = mat4.create(1.0);
+        const uniformArray = new Float32Array([...this.camera.view, ...this.camera.projection, ...modelMatrix]);
 
-        const uniformArray = new Float32Array([...this.camera.view, ...this.camera.projection, 0, 0, 0, 0]);
         this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformArray);
 
         const commandEncoder = this.device.createCommandEncoder();
@@ -137,20 +150,26 @@ export class Camera extends Sample {
                 module: shaderModule,
                 entryPoint: 'vertex',
                 buffers: [
+                    // Task 2.3: adjust the vertex layout
                     {
                         attributes: [
                             {
                                 shaderLocation: 0,
                                 offset: 0,
-                                format: 'float32x2',
+                                format: 'float32x3',
                             },
                             {
                                 shaderLocation: 1,
-                                offset: 8,
+                                offset: 12,
+                                format: 'float32x3',
+                            },
+                            {
+                                shaderLocation: 2,
+                                offset: 24,
                                 format: 'float32x2',
                             }
                         ],
-                        arrayStride: 16,
+                        arrayStride: 32,
                     },
                 ],
             },

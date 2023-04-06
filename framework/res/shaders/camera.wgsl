@@ -16,12 +16,14 @@ struct FragmentOutput {
     @location(0) color : vec4f,
 }
 
+// Task 2.2: add a camera struct to hold our camera's view and projection matrices
 struct Camera {
     view: mat4x4<f32>,
     projection: mat4x4<f32>,
 }
 
 struct Uniforms {
+    /// Task 2.2: add our camera's view and projection matrices to our Uniforms struct
     camera: Camera,
     offset: vec2f,
 }
@@ -35,6 +37,7 @@ fn vertex(input : VertexInput) -> VertexOutput {
     let position = vec4f(input.position + uniforms.offset, 0, 1);
 
     return VertexOutput(
+        // Task 2.2: take our triangle's vertices to clip space using our camera's view and projection matrices
         uniforms.camera.projection * uniforms.camera.view * position,
         input.texcoord,
     );

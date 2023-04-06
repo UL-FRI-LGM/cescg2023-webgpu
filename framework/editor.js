@@ -33,7 +33,7 @@ class Editor extends GUI.Panel {
                 content.node.style.height = h + "px";
                 y = y2;
             });
-            document.body.addEventListener("keydown", (event) => {
+            node.addEventListener("keydown", (event) => {
                 if (this.node.style.display === "none") return;
                 if (event.key !== "s" || !event.ctrlKey) return;
                 this.compile().then((success) => {
