@@ -1,20 +1,21 @@
 'use strict';
 
-import { Sample } from '../common/sample.js';
-import { Loader } from '../common/util/loader.js';
+import { Sample } from '../common/engine/sample.js';
+import { OrbitCamera } from '../common/engine/util/orbit-camera.js';
+import { Loader } from '../common/engine/util/loader.js';
 
-const SAMPLE_NAME = "Textured Triangle";
-const SHADER_NAME = "Textured Triangle";
+const SHADER_NAME = 'Textured Triangle';
 
 const shaders = {};
 const images = {};
+const models = {};
 
-export class TexturedTriangle extends Sample {
+export class ModelExplorer extends Sample {
     async load() {
         // Load resources
         const res = await Promise.all([
-            Loader.loadShaderCode("texturedTriangle.wgsl"),
-            Loader.loadImage("brick.png")
+            Loader.loadShaderCode('camera.wgsl'),
+            Loader.loadImage('brick.png')
         ]);
 
         // Set shaders
@@ -22,13 +23,14 @@ export class TexturedTriangle extends Sample {
 
         // Set images
         images.brick = res[1];
-    }
 
-    get name() {
-        return SAMPLE_NAME;
+        // Set models
+        // TODO
     }
 
     init() {
+        this.camera = new OrbitCamera(this.canvas);
+
         // Set brick texture
         const image = images.brick;
         const texture = this.device.createTexture({
@@ -44,8 +46,8 @@ export class TexturedTriangle extends Sample {
 
         // Create sampler
         const sampler = this.device.createSampler({
-            magFilter: "linear",
-            minFilter: "linear"
+            magFilter: 'linear',
+            minFilter: 'linear'
         });
 
         // Prepare vertex buffer
@@ -76,7 +78,7 @@ export class TexturedTriangle extends Sample {
 
         // Prepare uniform buffer
         this.uniformBuffer = this.device.createBuffer({
-            size: 8,
+            size: 144,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
 
@@ -93,20 +95,26 @@ export class TexturedTriangle extends Sample {
         this.colorAttachment = {
             view: null, // Will be set in draw()
             clearValue: {r: 0, g: 0, b: 0, a: 1},
-            loadOp: "clear",
+            loadOp: 'clear',
             loadValue: {r: 0, g: 0, b: 0, a: 1},
-            storeOp: "store"
+            storeOp: 'store'
         };
+
+        this.animate();
     }
 
     render() {
+        this.camera.update();
+        const uniformArray = new Float32Array([...this.camera.view, ...this.camera.projection, 0, 0, 0, 0]);
+        this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformArray);
+
         const commandEncoder = this.device.createCommandEncoder();
         this.colorAttachment.view = this.context.getCurrentTexture().createView();
         const renderPass = commandEncoder.beginRenderPass({colorAttachments: [this.colorAttachment]});
         renderPass.setPipeline(this.pipeline);
         renderPass.setBindGroup(0, this.bindGroup);
         renderPass.setVertexBuffer(0, this.vertexBuffer);
-        renderPass.setIndexBuffer(this.indexBuffer, "uint16");
+        renderPass.setIndexBuffer(this.indexBuffer, 'uint16');
         renderPass.drawIndexed(3);
         renderPass.end();
         this.device.queue.submit([commandEncoder.finish()]);
@@ -151,5 +159,10 @@ export class TexturedTriangle extends Sample {
                 ],
             },
         });
+    }
+
+    stop() {
+        super.stop();
+        this.camera.dispose();
     }
 }

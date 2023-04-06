@@ -1,6 +1,6 @@
 'use strict';
 
-import { mat4 } from '../../../lib/gl-matrix-module.js';
+import { mat4 } from '../../../../lib/gl-matrix-module.js';
 import { Node } from '../core/node.js';
 import { Transform } from '../core/transform.js';
 import { Camera } from '../core/camera.js';

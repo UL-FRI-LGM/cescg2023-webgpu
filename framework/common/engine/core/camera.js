@@ -1,6 +1,6 @@
 'use strict';
 
-import {mat4} from '../../../lib/gl-matrix-module.js';
+import { mat4 } from '../../../../lib/gl-matrix-module.js';
 
 export class Camera {
     #orthographic;

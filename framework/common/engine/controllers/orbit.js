@@ -1,7 +1,7 @@
 'use strict';
 
-import {quat, vec3} from '../../../lib/gl-matrix-module.js';
-import {Transform} from '../core/transform.js';
+import { quat, vec3 } from '../../../../lib/gl-matrix-module.js';
+import { Transform } from '../core/transform.js';
 
 export class OrbitController {
     #node;
@@ -14,6 +14,11 @@ export class OrbitController {
     #moveSensitivity;
     #zoomSensitivity;
 
+    #pointerdownHandler;
+    #pointerupHandler;
+    #pointermoveHandler;
+    #wheelHandler;
+
     constructor(node, domElement, {moveSensitivity = 0.004, zoomSensitivity = 0.002} = {}) {
         this.#node = node;
         this.#domElement = domElement;
@@ -22,8 +27,8 @@ export class OrbitController {
         this.#yaw = 0;
         this.#distance = 2;
 
-        this.#moveSensitivity = 0.004;
-        this.#zoomSensitivity = 0.002;
+        this.#moveSensitivity = moveSensitivity;
+        this.#zoomSensitivity = zoomSensitivity;
 
         this.#initHandlers();
     }
@@ -46,32 +51,32 @@ export class OrbitController {
     }
 
     #initHandlers() {
-        this.pointerdownHandler = this.#pointerdownHandler.bind(this);
-        this.pointerupHandler = this.#pointerupHandler.bind(this);
-        this.pointermoveHandler = this.#pointermoveHandler.bind(this);
-        this.wheelHandler = this.#wheelHandler.bind(this);
+        this.#pointerdownHandler = e => this.#handlePointerDownEvent(e);
+        this.#pointerupHandler = e => this.#handlePointerUpEvent(e);
+        this.#pointermoveHandler = e => this.#handlePointerMoveEvent(e);
+        this.#wheelHandler = e => this.#handleWheelEvent(e);
 
-        this.#domElement.addEventListener('pointerdown', this.pointerdownHandler);
-        this.#domElement.addEventListener('wheel', this.wheelHandler);
+        this.#domElement.addEventListener('pointerdown', this.#pointerdownHandler);
+        this.#domElement.addEventListener('wheel', this.#wheelHandler);
     }
 
-    #pointerdownHandler(e) {
+    #handlePointerDownEvent(e) {
         this.#domElement.setPointerCapture(e.pointerId);
         this.#domElement.requestPointerLock();
-        this.#domElement.removeEventListener('pointerdown', this.pointerdownHandler);
-        this.#domElement.addEventListener('pointerup', this.pointerupHandler);
-        this.#domElement.addEventListener('pointermove', this.pointermoveHandler);
+        this.#domElement.removeEventListener('pointerdown', this.#pointerdownHandler);
+        this.#domElement.addEventListener('pointerup', this.#pointerupHandler);
+        this.#domElement.addEventListener('pointermove', this.#pointermoveHandler);
     }
 
-    #pointerupHandler(e) {
+    #handlePointerUpEvent(e) {
         this.#domElement.releasePointerCapture(e.pointerId);
         this.#domElement.ownerDocument.exitPointerLock();
-        this.#domElement.addEventListener('pointerdown', this.pointerdownHandler);
-        this.#domElement.removeEventListener('pointerup', this.pointerupHandler);
-        this.#domElement.removeEventListener('pointermove', this.pointermoveHandler);
+        this.#domElement.addEventListener('pointerdown', this.#pointerdownHandler);
+        this.#domElement.removeEventListener('pointerup', this.#pointerupHandler);
+        this.#domElement.removeEventListener('pointermove', this.#pointermoveHandler);
     }
 
-    #pointermoveHandler(e) {
+    #handlePointerMoveEvent(e) {
         const dx = e.movementX;
         const dy = e.movementY;
 
@@ -85,14 +90,14 @@ export class OrbitController {
         this.#yaw = ((this.#yaw % twopi) + twopi) % twopi;
     }
 
-    #wheelHandler(e) {
+    #handleWheelEvent(e) {
         this.#distance *= Math.exp(this.#zoomSensitivity * e.deltaY);
     }
 
     dispose() {
-        this.#domElement.removeEventListener('pointerdown', this.pointerdownHandler);
-        this.#domElement.removeEventListener('pointerup', this.pointerupHandler);
-        this.#domElement.removeEventListener('pointermove', this.pointermoveHandler);
-        this.#domElement.removeEventListener('wheel', this.wheelHandler);
+        this.#domElement.removeEventListener('pointerdown', this.#pointerdownHandler);
+        this.#domElement.removeEventListener('pointerup', this.#pointerupHandler);
+        this.#domElement.removeEventListener('pointermove', this.#pointermoveHandler);
+        this.#domElement.removeEventListener('wheel', this.#wheelHandler);
     }
 }

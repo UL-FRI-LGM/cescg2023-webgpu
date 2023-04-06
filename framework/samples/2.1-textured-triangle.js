@@ -1,19 +1,19 @@
 'use strict';
 
-import { Sample } from '../common/sample.js';
-import { OrbitCamera } from '../common/util/orbit-camera.js';
-import { Loader } from '../common/util/loader.js';
+import { Sample } from '../common/engine/sample.js';
+import { Loader } from '../common/engine/util/loader.js';
 
+const SAMPLE_NAME = 'Textured Triangle';
 const SHADER_NAME = 'Textured Triangle';
 
 const shaders = {};
 const images = {};
 
-export class Camera extends Sample {
+export class TexturedTriangle extends Sample {
     async load() {
         // Load resources
         const res = await Promise.all([
-            Loader.loadShaderCode('camera.wgsl'),
+            Loader.loadShaderCode('texturedTriangle.wgsl'),
             Loader.loadImage('brick.png')
         ]);
 
@@ -24,9 +24,11 @@ export class Camera extends Sample {
         images.brick = res[1];
     }
 
-    init() {
-        this.camera = new OrbitCamera(this.canvas);
+    get name() {
+        return SAMPLE_NAME;
+    }
 
+    init() {
         // Set brick texture
         const image = images.brick;
         const texture = this.device.createTexture({
@@ -74,7 +76,7 @@ export class Camera extends Sample {
 
         // Prepare uniform buffer
         this.uniformBuffer = this.device.createBuffer({
-            size: 144,
+            size: 8,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
 
@@ -95,15 +97,9 @@ export class Camera extends Sample {
             loadValue: {r: 0, g: 0, b: 0, a: 1},
             storeOp: 'store'
         };
-
-        this.animate();
     }
 
     render() {
-        this.camera.update();
-        const uniformArray = new Float32Array([...this.camera.view, ...this.camera.projection, 0, 0, 0, 0]);
-        this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformArray);
-
         const commandEncoder = this.device.createCommandEncoder();
         this.colorAttachment.view = this.context.getCurrentTexture().createView();
         const renderPass = commandEncoder.beginRenderPass({colorAttachments: [this.colorAttachment]});
@@ -155,10 +151,5 @@ export class Camera extends Sample {
                 ],
             },
         });
-    }
-
-    stop() {
-        super.stop();
-        this.camera.dispose();
     }
 }

@@ -1,6 +1,6 @@
 'use strict';
 
-import {vec3, mat4, quat} from '../../../lib/gl-matrix-module.js';
+import { vec3, mat4, quat } from '../../../../lib/gl-matrix-module.js';
 
 export class Transform {
     constructor({

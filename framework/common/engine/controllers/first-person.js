@@ -1,7 +1,7 @@
 'use strict';
 
-import {quat, vec3, mat4} from '../../../lib/gl-matrix-module.js';
-import {Transform} from '../core/transform.js';
+import { quat, vec3 } from '../../../../lib/gl-matrix-module.js';
+import { Transform } from '../core/transform.js';
 
 export class FirstPersonController {
     #node;
@@ -17,6 +17,12 @@ export class FirstPersonController {
     #maxSpeed;
     #decay;
     #pointerSensitivity;
+
+    #pointermoveHandler;
+    #keydownHandler;
+    #keyupHandler;
+    #clickHandler;
+    #pointerLockChangeHandler;
 
     constructor(node, domElement, {
         velocity = vec3.fromValues(0, 0, 0),
@@ -100,26 +106,26 @@ export class FirstPersonController {
         const element = this.#domElement;
         const doc = element.ownerDocument;
 
-        this.pointermoveHandler = this.#pointermoveHandler.bind(this);
-        this.keydownHandler = this.#keydownHandler.bind(this);
-        this.keyupHandler = this.#keyupHandler.bind(this);
-        this.clickHandler = _ => element.requestPointerLock();
-        this.pointerLockChangeHandler = _ => {
+        this.#pointermoveHandler = e => this.#handlePointerMoveEvent(e);
+        this.#keydownHandler = e => this.#handleKeyDownEvent(e);
+        this.#keyupHandler = e => this.#handleKeyUpEvent(e);
+        this.#clickHandler = _ => element.requestPointerLock();
+        this.#pointerLockChangeHandler = _ => {
             if (doc.pointerLockElement === element) {
-                doc.addEventListener('pointermove', this.pointermoveHandler);
+                doc.addEventListener('pointermove', this.#pointermoveHandler);
             } else {
-                doc.removeEventListener('pointermove', this.pointermoveHandler);
+                doc.removeEventListener('pointermove', this.#pointermoveHandler);
             }
         };
 
-        doc.addEventListener('keydown', this.keydownHandler);
-        doc.addEventListener('keyup', this.keyupHandler);
+        doc.addEventListener('keydown', this.#keydownHandler);
+        doc.addEventListener('keyup', this.#keyupHandler);
 
-        element.addEventListener('click', this.clickHandler);
-        doc.addEventListener('pointerlockchange', this.pointerLockChangeHandler);
+        element.addEventListener('click', this.#clickHandler);
+        doc.addEventListener('pointerlockchange', this.#pointerLockChangeHandler);
     }
 
-    #pointermoveHandler(e) {
+    #handlePointerMoveEvent(e) {
         const dx = e.movementX;
         const dy = e.movementY;
 
@@ -133,11 +139,11 @@ export class FirstPersonController {
         this.#yaw = ((this.#yaw % twopi) + twopi) % twopi;
     }
 
-    #keydownHandler(e) {
+    #handleKeyDownEvent(e) {
         this.#keys[e.code] = true;
     }
 
-    #keyupHandler(e) {
+    #handleKeyUpEvent(e) {
         this.#keys[e.code] = false;
     }
 
@@ -145,10 +151,10 @@ export class FirstPersonController {
         const element = this.#domElement;
         const doc = element.ownerDocument;
 
-        doc.removeEventListener('keydown', this.keydownHandler);
-        doc.removeEventListener('keyup', this.keyupHandler);
-        doc.removeEventListener('pointermove', this.pointermoveHandler);
-        element.removeEventListener('click', this.clickHandler);
-        doc.removeEventListener('pointerlockchange', this.pointerLockChangeHandler);
+        doc.removeEventListener('keydown', this.#keydownHandler);
+        doc.removeEventListener('keyup', this.#keyupHandler);
+        doc.removeEventListener('pointermove', this.#pointermoveHandler);
+        element.removeEventListener('click', this.#clickHandler);
+        doc.removeEventListener('pointerlockchange', this.#pointerLockChangeHandler);
     }
 }

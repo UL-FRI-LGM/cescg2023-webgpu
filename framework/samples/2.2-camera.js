@@ -1,20 +1,19 @@
 'use strict';
 
-import { Sample } from '../common/sample.js';
-import { Loader } from '../common/util/loader.js';
+import { Sample } from '../common/engine/sample.js';
+import { OrbitCamera } from '../common/engine/util/orbit-camera.js';
+import { Loader } from '../common/engine/util/loader.js';
 
-const SAMPLE_NAME = 'Model Explorer';
-const SHADER_NAME = 'Model Explorer';
+const SHADER_NAME = 'Textured Triangle';
 
 const shaders = {};
 const images = {};
-const models = {};
 
-export class ModelExplorer extends Sample {
+export class Camera extends Sample {
     async load() {
         // Load resources
         const res = await Promise.all([
-            Loader.loadShaderCode('texturedTriangle.wgsl'),
+            Loader.loadShaderCode('camera.wgsl'),
             Loader.loadImage('brick.png')
         ]);
 
@@ -23,16 +22,11 @@ export class ModelExplorer extends Sample {
 
         // Set images
         images.brick = res[1];
-
-        // Set models
-        // TODO
-    }
-    
-    get name() {
-        return SAMPLE_NAME;
     }
 
     init() {
+        this.camera = new OrbitCamera(this.canvas);
+
         // Set brick texture
         const image = images.brick;
         const texture = this.device.createTexture({
@@ -80,7 +74,7 @@ export class ModelExplorer extends Sample {
 
         // Prepare uniform buffer
         this.uniformBuffer = this.device.createBuffer({
-            size: 8,
+            size: 144,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
 
@@ -102,69 +96,14 @@ export class ModelExplorer extends Sample {
             storeOp: 'store'
         };
 
-        // Controls
-        this.dragging = false;
-        this.lastMousePos = null;
-    }
-
-    /**
-     * Handle mouse interactions
-     * @param type 'down' | 'up' | 'move' | 'click'
-     * @param button 'left' | 'middle' | 'right' | null (if type is 'move')
-     * @param x number - Mouse cursor X position on the WebGPU canvas
-     * @param y number - Mouse cursor Y position on the WebGPU canvas
-     */
-    mouse(type, button, x, y) {
-        switch (type) {
-            case 'down':
-                this.dragging = true;
-                break;
-            case 'up':
-                this.dragging = false;
-                break;
-            case 'move':
-                break;
-            default:
-                return;
-        }
-        if (type === 'move' && this.dragging) {
-            const dx = x - this.lastMousePos.x;
-            const dy = y - this.lastMousePos.y;
-            if (dx !== 0 && dy !== 0) console.log('Mouse moved by ' + dx + ', ' + dy);
-        }
-        this.lastMousePos = {x, y};
-    }
-
-    /**
-     * Handle keyboard interactions
-     * @param type 'down' | 'up'
-     * @param key string -The value of the key pressed, matching KeyboardEvent.key (see https://www.toptal.com/developers/keycode)
-     */
-    key(type, key) {
-        key = key.toUpperCase();
-        switch (key) {
-            case 'W':
-                console.log('Forward');
-                break;
-            case 'A':
-                console.log('Left');
-                break;
-            case 'S':
-                console.log('Backward');
-                break;
-            case 'D':
-                console.log('Right');
-                break;
-            case 'Q':
-                console.log('Down');
-                break;
-            case 'E':
-                console.log('Up');
-                break;
-        }
+        this.animate();
     }
 
     render() {
+        this.camera.update();
+        const uniformArray = new Float32Array([...this.camera.view, ...this.camera.projection, 0, 0, 0, 0]);
+        this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformArray);
+
         const commandEncoder = this.device.createCommandEncoder();
         this.colorAttachment.view = this.context.getCurrentTexture().createView();
         const renderPass = commandEncoder.beginRenderPass({colorAttachments: [this.colorAttachment]});
@@ -216,5 +155,10 @@ export class ModelExplorer extends Sample {
                 ],
             },
         });
+    }
+
+    stop() {
+        super.stop();
+        this.camera.dispose();
     }
 }

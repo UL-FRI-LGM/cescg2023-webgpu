@@ -1,4 +1,4 @@
-import { Sample } from "../common/sample.js";
+import { Sample } from '../common/engine/sample.js';
 
 const shaders = {
   Triangle:
@@ -38,17 +38,17 @@ export class Triangle extends Sample {
         this.colorAttachment = {
             view: null, // Will be set in draw()
             clearValue: { r: 0, g: 0, b: 0, a: 1},
-            loadOp: "clear",
+            loadOp: 'clear',
             loadValue: { r: 0, g: 0, b: 0, a: 1},
-            storeOp: "store"
+            storeOp: 'store'
         };
 
         this._vertices = new GUI.NumberBox(3, 1000000, 1, 3, (value) => {
             this.update();
         });
 
-        const window = new GUI.Window("Settings");
-        window.add(new GUI.NamedElement("#vertices", this._vertices));
+        const window = new GUI.Window('Settings');
+        window.add(new GUI.NamedElement('#vertices', this._vertices));
         this.gui.add(window);
     }
 
@@ -68,24 +68,24 @@ export class Triangle extends Sample {
 
     reloadShader(shaderName, shaderCode) {
         this.pipeline = this.device.createRenderPipeline({
-            layout: "auto",
+            layout: 'auto',
             vertex: {
                 module: this.device.createShaderModule({
                     code: shaderCode
                 }),
-                entryPoint: "vs_main"
+                entryPoint: 'vs_main'
             },
             fragment: {
                 module: this.device.createShaderModule({
                     code: shaderCode
                 }),
-                entryPoint: "fs_main",
+                entryPoint: 'fs_main',
                 targets: [{
                     format: this.gpu.getPreferredCanvasFormat()
                 }]
             },
             primitive: {
-                topology: "triangle-strip"
+                topology: 'triangle-strip'
             }
         });
     }

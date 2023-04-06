@@ -1,10 +1,10 @@
 'use strict';
 
-import { Sample } from './common/sample.js';
-import { Triangle } from './samples/triangle.js';
-import { TexturedTriangle } from './samples/textured-triangle.js';
-import { Camera } from './samples/camera.js';
-import { ModelExplorer } from './samples/model-explorer.js';
+import { Sample } from './common/engine/sample.js';
+import { Triangle } from './samples/0.1-triangle.js';
+import { TexturedTriangle } from './samples/2.1-textured-triangle.js';
+import { Camera } from './samples/2.2-camera.js';
+import { ModelExplorer } from './samples/2.3-model-explorer.js';
 
 // Object mapping the sample name to the sample class
 const SAMPLES = {};
