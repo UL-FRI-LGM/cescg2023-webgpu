@@ -1,6 +1,6 @@
 'use strict';
 
-import { mat4 } from '../../../../lib/gl-matrix-module.js';
+import { mat4, vec3 } from '../../../../lib/gl-matrix-module.js';
 import { Node } from '../core/node.js';
 import { Transform } from '../core/transform.js';
 import { Camera } from '../core/camera.js';
@@ -20,6 +20,10 @@ export class OrbitCamera {
 
     update() {
         this.#camera.getComponentOfType(OrbitController).update();
+    }
+
+    get position() {
+        return mat4.getTranslation(vec3.create(), this.#camera.getComponentOfType(Transform).matrix);
     }
 
     get view() {

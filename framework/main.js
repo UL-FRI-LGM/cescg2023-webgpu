@@ -8,6 +8,7 @@ import { AdjustedVertexLayout } from './samples/2.3-adjust-vertex-layout.js';
 import { ModelExplorer } from './samples/2.4-model.js';
 import { DisplayNormals } from './samples/2.5-display-normals.js';
 import { DepthBuffer } from './samples/2.6-depth-buffer.js';
+import { StaticLightSource } from './samples/3.1-static-light-source.js';
 
 // Object mapping the sample name to the sample class
 const SAMPLES = {};
@@ -18,6 +19,7 @@ AdjustedVertexLayout.register(SAMPLES);
 ModelExplorer.register(SAMPLES);
 DisplayNormals.register(SAMPLES);
 DepthBuffer.register(SAMPLES);
+StaticLightSource.register(SAMPLES);
 
 // Entry point here!
 window.addEventListener('load', () => {
