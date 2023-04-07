@@ -16,6 +16,7 @@ import { Model } from '../common/engine/util/model.js';
 // Task 2.4: import the Vertex class
 import { Vertex } from '../common/engine/core/mesh.js';
 
+// Task 3.2: import vec3
 import { vec3 } from '../../lib/gl-matrix-module.js';
 
 const SHADER_NAME = 'Light Source From Buffer';
@@ -149,7 +150,7 @@ export class AttenuateLightColor extends Sample {
             view: this.depthTexture.createView(),
             depthClearValue: 1.0,
             depthLoadOp: 'clear',
-            depthStoreOp: 'store',
+            depthStoreOp: 'discard',
         };
 
         this.animate();

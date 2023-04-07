@@ -132,7 +132,7 @@ export class DepthBuffer extends Sample {
             view: this.depthTexture.createView(),
             depthClearValue: 1.0,
             depthLoadOp: 'clear',
-            depthStoreOp: 'store',
+            depthStoreOp: 'discard',
         };
 
         this.animate();
