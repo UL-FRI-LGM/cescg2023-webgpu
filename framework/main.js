@@ -13,6 +13,7 @@ import { LightSourceFromBuffer } from './samples/3.2-light-source-from-buffer.js
 import { AttenuateLightColor } from './samples/3.3-attenuate-light-color.js';
 import { MultipleLightSources } from './samples/3.4-multiple-light-sources.js';
 import { PhongIllumination } from './samples/3.5-phong-illumination.js';
+import { RenderToTexture } from './samples/4.1-render-to-texture.js';
 
 // Object mapping the sample name to the sample class
 const SAMPLES = {};
@@ -28,6 +29,7 @@ LightSourceFromBuffer.register(SAMPLES);
 AttenuateLightColor.register(SAMPLES);
 MultipleLightSources.register(SAMPLES);
 PhongIllumination.register(SAMPLES);
+RenderToTexture.register(SAMPLES);
 
 // Entry point here!
 window.addEventListener('load', () => {

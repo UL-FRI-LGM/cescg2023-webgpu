@@ -21,23 +21,30 @@ import { vec3 } from '../../lib/gl-matrix-module.js';
 
 const SHADER_NAME = 'PhongIllumination';
 
+// Task 4.1: add our present to screen shader
+const PRESENT_TO_SCREEN_SHADER_NAME = 'Present To Screen';
+
 const shaders = {};
 const images = {};
 const meshes = {};
 
-export class PhongIllumination extends Sample {
+export class RenderToTexture extends Sample {
     async load() {
         // Load resources
         const res = await Promise.all([
             Loader.loadShaderCode('phong-illumination.wgsl'),
+            // Task 4.1: load our present to screen shader
+            Loader.loadShaderCode('present-to-screen.wgsl'),
             Loader.loadImage('brick.png')
         ]);
 
         // Set shaders
         shaders[SHADER_NAME] = res[0];
+        // Task 4.1: add our present to screen shader
+        shaders[PRESENT_TO_SCREEN_SHADER_NAME] = res[1];
 
         // Set images
-        images.brick = res[1];
+        images.brick = res[2];
 
         // Set models
         // TODO: maybe load from server instead?
@@ -145,8 +152,16 @@ export class PhongIllumination extends Sample {
             ]
         });
 
+        // Task 4.1: create an output texture for the first render pass
+        this.colorTexture = this.device.createTexture({
+            size: [this.canvas.width, this.canvas.height],  // we'll keep the canvases dimensions for simplicity
+            format: this.gpu.getPreferredCanvasFormat(),    // we'll keep the preferred canvas format for simplicity
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+        });
+
+        // Task 4.1: create a color attachment for the first render pass
         this.colorAttachment = {
-            view: null, // Will be set in draw()
+            view: this.colorTexture.createView(),
             clearValue: {r: 0, g: 0, b: 0, a: 1},
             loadOp: 'clear',
             loadValue: {r: 0, g: 0, b: 0, a: 1},
@@ -167,6 +182,25 @@ export class PhongIllumination extends Sample {
             depthLoadOp: 'clear',
             depthStoreOp: 'discard',
         };
+
+        // Task 4.1: create a color attachment for the final pass presenting our rendered image to the canvas
+        this.screenAttachment = {
+            view: null, // Will be set in draw()
+            clearValue: {r: 0, g: 0, b: 0, a: 1},
+            loadOp: 'clear',
+            loadValue: {r: 0, g: 0, b: 0, a: 1},
+            storeOp: 'store'
+        };
+
+        // Task 4.1: create a bind group for the final pass.
+        //   this uses the texture we rendered to in the first pass and a sampler
+        this.presentToScreenBindgroup = this.device.createBindGroup({
+            layout: this.presentToScreenPipeline.getBindGroupLayout(0),
+            entries: [
+                {binding: 0, resource: this.colorTexture.createView()},
+                {binding: 1, resource: sampler},
+            ]
+        });
 
         this.animate();
     }
@@ -200,7 +234,7 @@ export class PhongIllumination extends Sample {
         );
 
         const commandEncoder = this.device.createCommandEncoder();
-        this.colorAttachment.view = this.context.getCurrentTexture().createView();
+        // Task 4.1: no longer set the color attachment's view from the current frame's view
         const renderPass = commandEncoder.beginRenderPass({
             colorAttachments: [this.colorAttachment],
             // Task 2.6: use the depth-stencil attachment
@@ -213,6 +247,17 @@ export class PhongIllumination extends Sample {
         // Task 2.4: draw all of the model's indices
         renderPass.drawIndexed(this.model.numIndices);
         renderPass.end();
+
+        // Task 4.1: encode the pipeline rendering to the screen
+        this.screenAttachment.view = this.context.getCurrentTexture().createView();
+        const presentToScreenPass = commandEncoder.beginRenderPass({
+            colorAttachments: [this.screenAttachment],
+        });
+        presentToScreenPass.setPipeline(this.presentToScreenPipeline);
+        presentToScreenPass.setBindGroup(0, this.presentToScreenBindgroup);
+        // the 6 vertices we are drawing are stored within a constant array in the shader
+        presentToScreenPass.draw(6);
+        presentToScreenPass.end();
 
         this.device.queue.submit([commandEncoder.finish()]);
     }
@@ -248,6 +293,27 @@ export class PhongIllumination extends Sample {
                 depthCompare: 'less',
                 format: 'depth24plus',
             }
+        });
+
+        // Task 4.1: create a pipeline to present our rendered image to the screen
+        const presentToScreenShaderModule = this.device.createShaderModule({code: shaders[PRESENT_TO_SCREEN_SHADER_NAME]});
+        this.presentToScreenPipeline = this.device.createRenderPipeline({
+            layout: 'auto',
+            vertex: {
+                module: presentToScreenShaderModule,
+                entryPoint: 'vertex',
+                // the vertices and texture coordinates are stored directly in the shader and accessed via their index
+                // so, we don't have to pass any vertex buffers here
+            },
+            fragment: {
+                module: presentToScreenShaderModule,
+                entryPoint: 'fragment',
+                targets: [
+                    {
+                        format: this.gpu.getPreferredCanvasFormat()
+                    }
+                ],
+            },
         });
     }
 
