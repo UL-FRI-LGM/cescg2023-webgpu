@@ -19,7 +19,10 @@ import { Vertex } from '../common/engine/core/mesh.js';
 // Task 3.2: import vec3
 import { vec3 } from '../../lib/gl-matrix-module.js';
 
-const SHADER_NAME = 'PhongIllumination';
+const G_BUFFER_SHADER_NAME = 'Create G-Buffer';
+
+// Task 4.3: add our deferred-shading shader
+const DEFERRED_SHADING_SHADER_NAME = 'Deferred Shading';
 
 // Task 4.1: add our present to screen shader
 const PRESENT_TO_SCREEN_SHADER_NAME = 'Present To Screen';
@@ -28,23 +31,30 @@ const shaders = {};
 const images = {};
 const meshes = {};
 
-export class RenderToTexture extends Sample {
+export class DeferredShading extends Sample {
     async load() {
         // Load resources
         const res = await Promise.all([
-            Loader.loadShaderCode('phong-illumination.wgsl'),
+            // Task 4.2: load our create-gbuffer shader
+            Loader.loadShaderCode('create-gbuffer.wgsl'),
+            // Task 4.3: load our deferred-shading shader
+            Loader.loadShaderCode('deferred-shading.wgsl'),
             // Task 4.1: load our present to screen shader
             Loader.loadShaderCode('present-to-screen.wgsl'),
             Loader.loadImage('brick.png')
         ]);
 
         // Set shaders
-        shaders[SHADER_NAME] = res[0];
+        shaders[G_BUFFER_SHADER_NAME] = res[0];
+
+        // Task 4.3: add our deferred-shading shader
+        shaders[DEFERRED_SHADING_SHADER_NAME] = res[1];
+
         // Task 4.1: add our present to screen shader
-        shaders[PRESENT_TO_SCREEN_SHADER_NAME] = res[1];
+        shaders[PRESENT_TO_SCREEN_SHADER_NAME] = res[2];
 
         // Set images
-        images.brick = res[2];
+        images.brick = res[3];
 
         // Set models
         // TODO: maybe load from server instead?
@@ -103,8 +113,8 @@ export class RenderToTexture extends Sample {
             [image.width, image.height]
         );
 
-        // Create sampler
-        const sampler = this.device.createSampler({
+        // Task 4.2: store our sampler in the Sample instance
+        this.sampler = this.device.createSampler({
             magFilter: 'linear',
             minFilter: 'linear'
         });
@@ -140,33 +150,62 @@ export class RenderToTexture extends Sample {
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
 
-        // Prepare bind group
+        // Task 4.2: create bind group for G-Buffer pass
         this.bindGroup = this.device.createBindGroup({
             layout: this.pipeline.getBindGroupLayout(0),
             entries: [
                 {binding: 0, resource: {buffer: this.uniformBuffer}},
                 {binding: 1, resource: texture.createView()},
-                {binding: 2, resource: sampler},
-                // Task 3.2: add storage buffer binding to bind group
-                {binding: 3, resource: {buffer: this.pointlightsBuffer}},
+                {binding: 2, resource: this.sampler},
             ]
         });
 
-        // Task 4.1: create an output texture for the rendered image
-        this.renderTexture = this.device.createTexture({
-            size: [this.canvas.width, this.canvas.height],  // we'll keep the canvases dimensions for simplicity
-            format: this.gpu.getPreferredCanvasFormat(),    // we'll keep the preferred canvas format for simplicity
-            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
-        });
-
-        // Task 4.1: create a color attachment for the first render pass
-        this.renderAttachment = {
-            view: this.renderTexture.createView(),
-            clearValue: {r: 0, g: 0, b: 0, a: 1},
-            loadOp: 'clear',
-            loadValue: {r: 0, g: 0, b: 0, a: 1},
-            storeOp: 'store'
+        // Task 4.2: set up a G-Buffer consisting of three textures:
+        //  - albedo
+        //  - positions
+        //  - normals
+        this.gBuffer = {
+            albedo: this.device.createTexture({
+                size: [this.canvas.width, this.canvas.height],  // we'll keep the canvases dimensions for simplicity
+                format: this.gpu.getPreferredCanvasFormat(),    // we'll keep the preferred canvas format for simplicity
+                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+            }),
+            positions: this.device.createTexture({
+                size: [this.canvas.width, this.canvas.height],  // we'll keep the canvases dimensions for simplicity
+                format: this.gpu.getPreferredCanvasFormat(),    // we'll keep the preferred canvas format for simplicity
+                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+            }),
+            normals: this.device.createTexture({
+                size: [this.canvas.width, this.canvas.height],  // we'll keep the canvases dimensions for simplicity
+                format: this.gpu.getPreferredCanvasFormat(),    // we'll keep the preferred canvas format for simplicity
+                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+            }),
         };
+
+        // Task 4.2: create color attachments for the render pass creating the G-Buffer
+        this.gBufferColorAttachments = [
+            {
+                view: this.gBuffer.albedo.createView(),
+                clearValue: {r: 0, g: 0, b: 0, a: 1},
+                loadOp: 'clear',
+                loadValue: {r: 0, g: 0, b: 0, a: 1},
+                storeOp: 'store'
+            },
+            {
+                view: this.gBuffer.positions.createView(),
+                clearValue: {r: 0, g: 0, b: 0, a: 1},
+                loadOp: 'clear',
+                loadValue: {r: 0, g: 0, b: 0, a: 1},
+                storeOp: 'store'
+            },
+            {
+                view: this.gBuffer.normals.createView(),
+                clearValue: {r: 0, g: 0, b: 0, a: 1},
+                loadOp: 'clear',
+                loadValue: {r: 0, g: 0, b: 0, a: 1},
+                storeOp: 'store'
+            },
+        ];
 
         // Task 2.6: create a depth texture
         this.depthTexture = this.device.createTexture({
@@ -183,6 +222,31 @@ export class RenderToTexture extends Sample {
             depthStoreOp: 'discard',
         };
 
+        // Task 4.1: create an output texture for the first render pass
+        this.renderTexture = this.device.createTexture({
+            size: [this.canvas.width, this.canvas.height],  // we'll keep the canvases dimensions for simplicity
+            // Task 4.3: use a texture format that supports the storage binding usage (e.g., rgba8unorm)
+            format: 'rgba8unorm',
+            // Task 4.3: replace RENDER_ATTACHMENT with STORAGE_BINDING
+            usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+        });
+
+        // Task 4.3: create the bind group for our deferred shading pass
+        this.deferredShadingBindGroup = this.device.createBindGroup({
+            layout: this.deferredShadingPipeline.getBindGroupLayout(0),
+            entries: [
+                // G-Buffer
+                {binding: 0, resource: this.gBuffer.albedo.createView()},
+                {binding: 1, resource: this.gBuffer.positions.createView()},
+                {binding: 2, resource: this.gBuffer.normals.createView()},
+                // uniforms & light sources
+                {binding: 3, resource: {buffer: this.uniformBuffer}},
+                {binding: 4, resource: {buffer: this.pointlightsBuffer}},
+                // rendered image
+                {binding: 5, resource: this.renderTexture.createView()},
+            ]
+        });
+
         // Task 4.1: create a color attachment for the final pass presenting our rendered image to the canvas
         this.screenAttachment = {
             view: null, // Will be set in draw()
@@ -197,8 +261,9 @@ export class RenderToTexture extends Sample {
         this.presentToScreenBindgroup = this.device.createBindGroup({
             layout: this.presentToScreenPipeline.getBindGroupLayout(0),
             entries: [
+                // Task 4.3: show the rendered image by default
                 {binding: 0, resource: this.renderTexture.createView()},
-                {binding: 1, resource: sampler},
+                {binding: 1, resource: this.sampler},
             ]
         });
 
@@ -206,9 +271,45 @@ export class RenderToTexture extends Sample {
     }
 
     key(type, keys) {
-        // Task 2.5 switch between render modes on some key event (here, we use the 'm' key)
-        if (type === 'up' && (keys.includes('m') || keys.includes('M'))) {
-            this.showNormals = !this.showNormals;
+        // Task 4.2: add keyboard inputs to switch between G-Buffer views
+        if (type === 'up') {
+            if (keys.includes('a') || keys.includes('A')) {
+                this.presentToScreenBindgroup = this.device.createBindGroup({
+                    layout: this.presentToScreenPipeline.getBindGroupLayout(0),
+                    entries: [
+                        // Task 4.2: render the G-Buffer's albedo texture
+                        {binding: 0, resource: this.gBuffer.albedo.createView()},
+                        {binding: 1, resource: this.sampler},
+                    ]
+                });
+            } else if (keys.includes('p') || keys.includes('P')) {
+                this.presentToScreenBindgroup = this.device.createBindGroup({
+                    layout: this.presentToScreenPipeline.getBindGroupLayout(0),
+                    entries: [
+                        // Task 4.2: render the G-Buffer's positions texture
+                        {binding: 0, resource: this.gBuffer.positions.createView()},
+                        {binding: 1, resource: this.sampler},
+                    ]
+                });
+            } else if (keys.includes('n') || keys.includes('N')) {
+                this.presentToScreenBindgroup = this.device.createBindGroup({
+                    layout: this.presentToScreenPipeline.getBindGroupLayout(0),
+                    entries: [
+                        // Task 4.2: render the G-Buffer's normals texture
+                        {binding: 0, resource: this.gBuffer.normals.createView()},
+                        {binding: 1, resource: this.sampler},
+                    ]
+                });
+            } else if (keys.includes('r') || keys.includes('R')) {
+                this.presentToScreenBindgroup = this.device.createBindGroup({
+                    layout: this.presentToScreenPipeline.getBindGroupLayout(0),
+                    entries: [
+                        // Task 4.2: render the G-Buffer's render texture
+                        {binding: 0, resource: this.renderTexture.createView()},
+                        {binding: 1, resource: this.sampler},
+                    ]
+                });
+            }
         }
     }
 
@@ -236,7 +337,8 @@ export class RenderToTexture extends Sample {
         const commandEncoder = this.device.createCommandEncoder();
         // Task 4.1: no longer set the color attachment's view from the current frame's view
         const renderPass = commandEncoder.beginRenderPass({
-            colorAttachments: [this.renderAttachment],
+            // Task 4.2: render to the G-Buffer attachments
+            colorAttachments: [...this.gBufferColorAttachments],
             // Task 2.6: use the depth-stencil attachment
             depthStencilAttachment: this.depthStencilAttachment,
         });
@@ -247,6 +349,16 @@ export class RenderToTexture extends Sample {
         // Task 2.4: draw all of the model's indices
         renderPass.drawIndexed(this.model.numIndices);
         renderPass.end();
+
+        // Task 4.3: encode the deferred shading pass
+        const deferredShadingPass = commandEncoder.beginComputePass();
+        deferredShadingPass.setPipeline(this.deferredShadingPipeline);
+        deferredShadingPass.setBindGroup(0, this.deferredShadingBindGroup);
+        deferredShadingPass.dispatchWorkgroups(
+            Math.ceil(this.canvas.width / 16),
+            Math.ceil(this.canvas.height / 16),
+        );
+        deferredShadingPass.end();
 
         // Task 4.1: encode the pipeline rendering to the screen
         this.screenAttachment.view = this.context.getCurrentTexture().createView();
@@ -267,7 +379,7 @@ export class RenderToTexture extends Sample {
     }
 
     reloadShader(shaderName, shaderCode) {
-        const shaderModule = this.device.createShaderModule({code: shaders[SHADER_NAME]});
+        const shaderModule = this.device.createShaderModule({code: shaders[G_BUFFER_SHADER_NAME]});
         this.pipeline = this.device.createRenderPipeline({
             layout: 'auto',
             vertex: {
@@ -282,9 +394,10 @@ export class RenderToTexture extends Sample {
                 module: shaderModule,
                 entryPoint: 'fragment',
                 targets: [
-                    {
-                        format: this.gpu.getPreferredCanvasFormat()
-                    }
+                    // Task 4.2: write to all G-Buffer attachments
+                    {format: this.gpu.getPreferredCanvasFormat(),},
+                    {format: this.gpu.getPreferredCanvasFormat(),},
+                    {format: this.gpu.getPreferredCanvasFormat(),},
                 ],
             },
             // Task 2.6: enable depth testing
@@ -293,6 +406,16 @@ export class RenderToTexture extends Sample {
                 depthCompare: 'less',
                 format: 'depth24plus',
             }
+        });
+
+        // Task 4.3: create a compute pipeline to compute the illumination in our scene in a deferred way
+        const deferredShadingShaderModule = this.device.createShaderModule({code: shaders[DEFERRED_SHADING_SHADER_NAME]});
+        this.deferredShadingPipeline = this.device.createComputePipeline({
+            layout: 'auto',
+            compute: {
+                module: deferredShadingShaderModule,
+                entryPoint: 'compute',
+            },
         });
 
         // Task 4.1: create a pipeline to present our rendered image to the screen

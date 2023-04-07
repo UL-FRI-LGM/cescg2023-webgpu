@@ -14,6 +14,9 @@ import { AttenuateLightColor } from './samples/3.3-attenuate-light-color.js';
 import { MultipleLightSources } from './samples/3.4-multiple-light-sources.js';
 import { PhongIllumination } from './samples/3.5-phong-illumination.js';
 import { RenderToTexture } from './samples/4.1-render-to-texture.js';
+import { CreateGBuffer } from './samples/4.2-create-gbuffer.js';
+import { DeferredShading } from './samples/4.3-deferred-shading.js';
+import { AnimateLights } from './samples/4.4-animate-lights.js';
 
 // Object mapping the sample name to the sample class
 const SAMPLES = {};
@@ -30,6 +33,9 @@ AttenuateLightColor.register(SAMPLES);
 MultipleLightSources.register(SAMPLES);
 PhongIllumination.register(SAMPLES);
 RenderToTexture.register(SAMPLES);
+CreateGBuffer.register(SAMPLES);
+DeferredShading.register(SAMPLES);
+AnimateLights.register(SAMPLES);
 
 // Entry point here!
 window.addEventListener('load', () => {
