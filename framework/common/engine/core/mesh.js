@@ -60,11 +60,14 @@ export class Mesh {
     #indices;
 
     constructor({vertices = [], normals = [], texcoords = [], indices = []}) {
+        const hasNormals = normals.length === vertices.length;
+        const hasTexCoords = (texcoords.length / 2) * 3 === vertices.length;
+
         this.#vertices = [];
         for (let i = 0; i < vertices.length / 3; ++i) {
             const position = vec3.fromValues(vertices[i * 3], vertices[i * 3 + 1], vertices[i * 3 + 2]);
-            const normal = normals.length === vertices.length ? vec3.fromValues(normals[i * 3], normals[i * 3 + 1], normals[i * 3 + 2]) : vec3.create();
-            const textureCoordinates = texcoords.length === vertices.length ? vec2.fromValues(texcoords[i * 2], texcoords[i * 2 + 1]) : vec2.create();
+            const normal = hasNormals ? vec3.fromValues(normals[i * 3], normals[i * 3 + 1], normals[i * 3 + 2]) : vec3.create();
+            const textureCoordinates = hasTexCoords ? vec2.fromValues(texcoords[i * 2], texcoords[i * 2 + 1]) : vec2.create();
 
             this.#vertices.push(new Vertex({position, normal, textureCoordinates}));
         }
