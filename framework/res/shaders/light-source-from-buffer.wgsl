@@ -24,8 +24,6 @@ struct FragmentOutput {
 }
 
 struct Camera {
-    // Task 3.1: add the camera's position to our Camera struct
-    position: vec3f,
     view: mat4x4<f32>,
     projection: mat4x4<f32>,
 }
@@ -43,34 +41,21 @@ struct Uniforms {
 // Task 3.1: add a PointLight struct
 struct PointLight {
     position: vec3f,
-    attenuation: vec3f,
+    radius: f32,
     color: vec3f,
 }
 
-// Task 3.1: add a Material struct
-struct Material {
-    diffuse: f32,
-    specular: f32,
-    shininess: f32,
-}
+// Task 3.1: add a constant ambient light
+const AMBIENT_LIGHT: vec3f = vec3f(0.1);
 
-// Task 3.1: add a constant instance of our PointLight struct
-const LIGHT_SOURCE: PointLight = PointLight(
-    vec3(0.0, 1.0, 1.0),
-    vec3(2.0, 0.0, 1.0),
-    vec3(1.0, 1.0, 1.0),
-);
-
-// Task 3.1: add a constant instance of our Material struct
-const MATERIAL: Material = Material(
-    1,  // diffuse
-    1,  // specular
-    50, // shininess
-);
+// Task 3.1: add a constant diffuse reflection coefficient
+const DIFFUSE_REFLECTIVITY: f32 = 1.0;
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 @group(0) @binding(1) var uTexture : texture_2d<f32>;
 @group(0) @binding(2) var uSampler : sampler;
+// Task 3.2: add a storage buffer binding to hold our point light sources
+@group(0) @binding(3) var<storage, read> uLights : array<PointLight>;
 
 @vertex
 fn vertex(input : VertexInput) -> VertexOutput {
@@ -85,35 +70,34 @@ fn vertex(input : VertexInput) -> VertexOutput {
     );
 }
 
+// Task 3.1: compute diffuse lighting (Lambertian reflection)
 fn compute_diffuse_lighting(normal: vec3f, light_direction: vec3f) -> f32 {
-    return max(0.0, dot(normal, light_direction)) * MATERIAL.diffuse;
+    return max(0.0, dot(normal, light_direction)) * DIFFUSE_REFLECTIVITY;
 }
 
-fn compute_specular_lighting(position: vec3f, normal: vec3f, light_direction: vec3f) -> f32 {
-    let view_direction = normalize(uniforms.camera.position - position);
-    let reflection_vector = reflect(-light_direction, normal);
-    return pow(max(0.0, dot(light_direction, reflection_vector)), MATERIAL.shininess) * MATERIAL.specular;
-}
+// Task 3.2: compute diffuse lighting for light source with index `light_index`
+fn compute_lighting(position: vec3f, normal: vec3f, albedo: vec3f, light_index: u32) -> vec3f {
+    // Task 3.1: ignore the light source if it is too far away from the current fragment
+    if distance(position, uLights[light_index].position) > uLights[light_index].radius {
+        return vec3f();
+    }
 
-fn compute_lighting(position: vec3f, normal: vec3f, albedo: vec3f) -> vec3f {
-    let d = distance(position, LIGHT_SOURCE.position);
-    let attenuation = 1.0 / dot(LIGHT_SOURCE.attenuation, vec3f(1, d, d * d));
-    let attenuated_light_color = attenuation * LIGHT_SOURCE.color;
+    let light_direction = normalize(uLights[light_index].position - position);
 
-    let light_direction = normalize(LIGHT_SOURCE.position - position);
+    let diffuse = compute_diffuse_lighting(normal, light_direction) * uLights[light_index].color;
 
-    let diffuse = compute_diffuse_lighting(normal, light_direction) * attenuated_light_color;
-    let specular = compute_specular_lighting(position, normal, light_direction) * attenuated_light_color;
-
-    return albedo * diffuse + specular;
+    return albedo * diffuse;
 }
 
 @fragment
 fn fragment(input : FragmentInput) -> FragmentOutput {
     let albedo = textureSample(uTexture, uSampler, input.texcoord).rgb;
 
-    let ambient = vec3f(0.1);
-    var color = vec4f(ambient + compute_lighting(input.position, input.normal, albedo), 1.0);
+    // Task 3.2: compute lighting for each light source
+    var color = vec4f(AMBIENT_LIGHT, 1.0);
+    for (var i = 0u; i < arrayLength(&uLights); i += 1u) {
+        color += vec4f(compute_lighting(input.position, input.normal, albedo, i), 0.0);
+    }
 
     if uniforms.mode == MODE_NORMALS {
         color = vec4f(input.normal, 1.0);

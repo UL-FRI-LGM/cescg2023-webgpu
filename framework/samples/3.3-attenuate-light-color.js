@@ -16,17 +16,19 @@ import { Model } from '../common/engine/util/model.js';
 // Task 2.4: import the Vertex class
 import { Vertex } from '../common/engine/core/mesh.js';
 
-const SHADER_NAME = 'Static Light Source';
+import { vec3 } from '../../lib/gl-matrix-module.js';
+
+const SHADER_NAME = 'Light Source From Buffer';
 
 const shaders = {};
 const images = {};
 const meshes = {};
 
-export class StaticLightSource extends Sample {
+export class AttenuateLightColor extends Sample {
     async load() {
         // Load resources
         const res = await Promise.all([
-            Loader.loadShaderCode('static-light-source.wgsl'),
+            Loader.loadShaderCode('attenuate-light-color.wgsl'),
             Loader.loadImage('brick.png')
         ]);
 
@@ -50,6 +52,19 @@ export class StaticLightSource extends Sample {
 
         // Task 2.4: add a 3D model
         this.model = new Model(meshes.bunny);
+
+        // Task 3.2: create a storage buffer to hold a point light source and upload light source data
+        const pointLightStrideInElements = 8; // 3 (position) + 1 (radius) + 3 (color) + 1 (padding)
+        this.pointlightsBuffer = this.device.createBuffer({
+            size: Float32Array.BYTES_PER_ELEMENT * pointLightStrideInElements,
+            usage: GPUBufferUsage.STORAGE,
+            mappedAtCreation: true,
+        });
+        const pointLightsBufferRange = new Float32Array(this.pointlightsBuffer.getMappedRange());
+        pointLightsBufferRange.set(vec3.fromValues(0.0, 1.0, 1.0));     // position
+        pointLightsBufferRange.set([2], 3);                             // intensity
+        pointLightsBufferRange.set(vec3.fromValues(1.0, 1.0, 1.0), 4);  // color
+        this.pointlightsBuffer.unmap();
 
         // Set brick texture
         const image = images.brick;
@@ -98,7 +113,7 @@ export class StaticLightSource extends Sample {
         this.uniformBuffer = this.device.createBuffer({
             // Task 2.4: adjust the uniform buffer's size to hold three 4x4 matrices and 4 extra bytes for our render mode
             //           this also requires some padding!
-            size: 224,
+            size: 208,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
 
@@ -108,7 +123,9 @@ export class StaticLightSource extends Sample {
             entries: [
                 {binding: 0, resource: {buffer: this.uniformBuffer}},
                 {binding: 1, resource: texture.createView()},
-                {binding: 2, resource: sampler}
+                {binding: 2, resource: sampler},
+                // Task 3.2: add storage buffer binding to bind group
+                {binding: 3, resource: {buffer: this.pointlightsBuffer}},
             ]
         });
 
@@ -151,8 +168,6 @@ export class StaticLightSource extends Sample {
         // TASK 2.4: replace the default matrix with the model's transformation matrix
         const modelMatrix = this.model.modelMatrix;
         const uniformArray = new Float32Array([
-            // Task 3.1: add camera position
-            ...this.camera.position, 0.0,
             ...this.camera.view,
             ...this.camera.projection,
             ...modelMatrix,

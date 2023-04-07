@@ -8,7 +8,11 @@ import { AdjustedVertexLayout } from './samples/2.3-adjust-vertex-layout.js';
 import { ModelExplorer } from './samples/2.4-model.js';
 import { DisplayNormals } from './samples/2.5-display-normals.js';
 import { DepthBuffer } from './samples/2.6-depth-buffer.js';
-import { StaticLightSource } from './samples/3.1-static-light-source.js';
+import { StaticLightSourceDiffuse } from './samples/3.1-static-light-source-diffuse.js';
+import { LightSourceFromBuffer } from './samples/3.2-light-source-from-buffer.js';
+import { AttenuateLightColor } from './samples/3.3-attenuate-light-color.js';
+import { MultipleLightSources } from './samples/3.4-multiple-light-sources.js';
+import { PhongIllumination } from './samples/3.5-phong-illumination.js';
 
 // Object mapping the sample name to the sample class
 const SAMPLES = {};
@@ -19,7 +23,11 @@ AdjustedVertexLayout.register(SAMPLES);
 ModelExplorer.register(SAMPLES);
 DisplayNormals.register(SAMPLES);
 DepthBuffer.register(SAMPLES);
-StaticLightSource.register(SAMPLES);
+StaticLightSourceDiffuse.register(SAMPLES);
+LightSourceFromBuffer.register(SAMPLES);
+AttenuateLightColor.register(SAMPLES);
+MultipleLightSources.register(SAMPLES);
+PhongIllumination.register(SAMPLES);
 
 // Entry point here!
 window.addEventListener('load', () => {
