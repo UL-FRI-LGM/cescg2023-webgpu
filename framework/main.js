@@ -43,7 +43,6 @@ window.addEventListener('load', () => {
     gui.node.style.display = 'none';
 
     main(gui)
-        //.then(() => console.log('Successfully initialized!'))
         .catch((reason) => {
             gui.alert(reason, 'Error');
         });
@@ -123,4 +122,27 @@ async function main(gui) {
         samplesSelect.value = samples[0];
         await activateSample(samplesSelect.value);
     }
+
+    /*
+    // Add settings to UI
+    {
+        const settingsSelect = document.getElementById('settings');
+        const settings = {};
+        const addSetting = (name, onSelected) => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            settingsSelect.appendChild(option);
+            settings[name] = onSelected;
+        }
+        settingsSelect.addEventListener('change', () => {
+            settings[settingsSelect.value]()
+            settingsSelect.value = firstOption;
+        });
+        const firstOption = '- select -';
+        addSetting(firstOption, () => {
+        });
+        addSetting('Toggle GUI', () => gui.node.style.display = gui.node.style.display === 'none' ? '' : 'none');
+    }
+     */
 }
