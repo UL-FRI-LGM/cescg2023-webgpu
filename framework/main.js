@@ -98,16 +98,10 @@ async function main(gui) {
             if (activeSample) activeSample.stop();
             gui.clear();
             const nextActiveSample = new SAMPLES[sampleName](gui, gpu, adapter, device, context, canvas.node);
-
-            // todo: simplify this block into one async init function
-            await nextActiveSample.load();
-            for (const [shaderName, shaderCode] of Object.entries(nextActiveSample.shaders())) {
-                nextActiveSample.reloadShader(shaderName, shaderCode);
-            }
-            nextActiveSample.init();
-
+            await nextActiveSample.init();
             activeSample = nextActiveSample;
             configure();
+            if (SAMPLES[sampleName].isAnimatedSample()) activeSample.animate();
         };
         const samplesSelect = document.getElementById('samples');
         for (const sampleName of samples) {

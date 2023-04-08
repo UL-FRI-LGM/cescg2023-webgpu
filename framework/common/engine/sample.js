@@ -35,27 +35,15 @@ export class Sample {
     // Override the following methods in subclasses --------------------------------------------------------------------
 
     /** Override me! */
-    async load() {
-    }
-
-    /** Override me! */
-    init() {
+    async init() {
     }
 
     /** Override me! */
     render(deltaTime = 0.0) {
     }
 
-    /** Override me! Return an object mapping shader names to their respective codes: { [name: string]: string } */
-    shaders() {
-    }
-
     /** Override me! */
     resize(width, height) {
-    }
-
-    /** Override me! Implement shader reloading */
-    reloadShader(shaderName, shaderCode) {
     }
 
     /**
@@ -119,5 +107,9 @@ export class Sample {
 
     static register(samples) {
         samples[this.prototype.constructor.name] = this;
+    }
+
+    static isAnimatedSample() {
+        return true;
     }
 }
