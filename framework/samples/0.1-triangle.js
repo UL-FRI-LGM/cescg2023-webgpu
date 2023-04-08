@@ -1,7 +1,6 @@
 import { Sample } from '../common/engine/sample.js';
 
-const shaders = {
-  Triangle:
+const shaderCode =
 `struct Output {
     @builtin(position) Position : vec4<f32>,
     @location(0) vColor : vec4<f32>
@@ -30,11 +29,32 @@ fn vs_main(@builtin(vertex_index) VertexIndex: u32) -> Output {
 @fragment
 fn fs_main(@location(0) vColor: vec4<f32>) -> @location(0) vec4<f32> {
     return vColor;
-}`
-  }
+}`;
 
 export class Triangle extends Sample {
-    init() {
+    async init() {
+        this.pipeline = this.device.createRenderPipeline({
+            layout: 'auto',
+            vertex: {
+                module: this.device.createShaderModule({
+                    code: shaderCode
+                }),
+                entryPoint: 'vs_main'
+            },
+            fragment: {
+                module: this.device.createShaderModule({
+                    code: shaderCode
+                }),
+                entryPoint: 'fs_main',
+                targets: [{
+                    format: this.gpu.getPreferredCanvasFormat()
+                }]
+            },
+            primitive: {
+                topology: 'triangle-strip'
+            }
+        });
+
         this.colorAttachment = {
             view: null, // Will be set in draw()
             clearValue: { r: 0, g: 0, b: 0, a: 1},
@@ -62,31 +82,7 @@ export class Triangle extends Sample {
         this.device.queue.submit([commandEncoder.finish()]);
     }
 
-    shaders() {
-        return shaders;
-    }
-
-    reloadShader(shaderName, shaderCode) {
-        this.pipeline = this.device.createRenderPipeline({
-            layout: 'auto',
-            vertex: {
-                module: this.device.createShaderModule({
-                    code: shaderCode
-                }),
-                entryPoint: 'vs_main'
-            },
-            fragment: {
-                module: this.device.createShaderModule({
-                    code: shaderCode
-                }),
-                entryPoint: 'fs_main',
-                targets: [{
-                    format: this.gpu.getPreferredCanvasFormat()
-                }]
-            },
-            primitive: {
-                topology: 'triangle-strip'
-            }
-        });
+    static isAnimatedSample() {
+        return false;
     }
 }

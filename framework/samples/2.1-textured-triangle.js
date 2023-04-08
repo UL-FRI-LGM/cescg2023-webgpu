@@ -4,50 +4,31 @@ import { Sample } from '../common/engine/sample.js';
 import { Loader } from '../common/engine/util/loader.js';
 
 const SAMPLE_NAME = 'Textured Triangle';
-const SHADER_NAME = 'Textured Triangle';
-
-const shaders = {};
-const images = {};
 
 export class TexturedTriangle extends Sample {
-    async load() {
-        // Load resources
-        const res = await Promise.all([
-            Loader.loadShaderCode('texturedTriangle.wgsl'),
-            Loader.loadImage('brick.png')
-        ]);
-
-        // Set shaders
-        shaders[SHADER_NAME] = res[0];
-
-        // Set images
-        images.brick = res[1];
+    async init() {
+        await this.#initResources();
+        await this.#initPipelines();
     }
 
     get name() {
         return SAMPLE_NAME;
     }
 
-    init() {
-        // Set brick texture
-        const image = images.brick;
-        const texture = this.device.createTexture({
-            size: [image.width, image.height],
-            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
-            format: 'rgba8unorm',
-        });
-        this.device.queue.copyExternalImageToTexture(
-            {source: image},
-            {texture: texture},
-            [image.width, image.height]
-        );
+    render() {
+        const commandEncoder = this.device.createCommandEncoder();
+        this.colorAttachment.view = this.context.getCurrentTexture().createView();
+        const renderPass = commandEncoder.beginRenderPass({colorAttachments: [this.colorAttachment]});
+        renderPass.setPipeline(this.pipeline);
+        renderPass.setBindGroup(0, this.bindGroup);
+        renderPass.setVertexBuffer(0, this.vertexBuffer);
+        renderPass.setIndexBuffer(this.indexBuffer, 'uint16');
+        renderPass.drawIndexed(3);
+        renderPass.end();
+        this.device.queue.submit([commandEncoder.finish()]);
+    }
 
-        // Create sampler
-        const sampler = this.device.createSampler({
-            magFilter: 'linear',
-            minFilter: 'linear'
-        });
-
+    async #initResources() {
         // Prepare vertex buffer
         const vertices = new Float32Array([
             0.0, 0.5, 0.5, 1.0,
@@ -74,50 +55,36 @@ export class TexturedTriangle extends Sample {
         new Uint16Array(this.indexBuffer.getMappedRange()).set(indices);
         this.indexBuffer.unmap();
 
+        // Set up brick texture
+        const image = await Loader.loadImage('brick.png');
+        this.texture = this.device.createTexture({
+            size: [image.width, image.height],
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+            format: 'rgba8unorm',
+        });
+        this.device.queue.copyExternalImageToTexture(
+            {source: image},
+            {texture: this.texture},
+            [image.width, image.height]
+        );
+
+        // Create sampler
+        this.sampler = this.device.createSampler({
+            magFilter: 'linear',
+            minFilter: 'linear'
+        });
+
+        // todo: this uniform buffer is unused! to be the same as the example from part 1 it needs the ui stuff!
         // Prepare uniform buffer
         this.uniformBuffer = this.device.createBuffer({
             size: 8,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
-
-        // Prepare bind group
-        this.bindGroup = this.device.createBindGroup({
-            layout: this.pipeline.getBindGroupLayout(0),
-            entries: [
-                {binding: 0, resource: {buffer: this.uniformBuffer}},
-                {binding: 1, resource: texture.createView()},
-                {binding: 2, resource: sampler}
-            ]
-        });
-
-        this.colorAttachment = {
-            view: null, // Will be set in draw()
-            clearValue: {r: 0, g: 0, b: 0, a: 1},
-            loadOp: 'clear',
-            loadValue: {r: 0, g: 0, b: 0, a: 1},
-            storeOp: 'store'
-        };
     }
 
-    render() {
-        const commandEncoder = this.device.createCommandEncoder();
-        this.colorAttachment.view = this.context.getCurrentTexture().createView();
-        const renderPass = commandEncoder.beginRenderPass({colorAttachments: [this.colorAttachment]});
-        renderPass.setPipeline(this.pipeline);
-        renderPass.setBindGroup(0, this.bindGroup);
-        renderPass.setVertexBuffer(0, this.vertexBuffer);
-        renderPass.setIndexBuffer(this.indexBuffer, 'uint16');
-        renderPass.drawIndexed(3);
-        renderPass.end();
-        this.device.queue.submit([commandEncoder.finish()]);
-    }
-
-    shaders() {
-        return shaders;
-    }
-
-    reloadShader(shaderName, shaderCode) {
-        const shaderModule = this.device.createShaderModule({code: shaders[SHADER_NAME]});
+    async #initPipelines() {
+        const code = await Loader.loadShaderCode('texturedTriangle.wgsl');
+        const shaderModule = this.device.createShaderModule({code});
         this.pipeline = this.device.createRenderPipeline({
             layout: 'auto',
             vertex: {
@@ -151,5 +118,23 @@ export class TexturedTriangle extends Sample {
                 ],
             },
         });
+
+        // Prepare bind group
+        this.bindGroup = this.device.createBindGroup({
+            layout: this.pipeline.getBindGroupLayout(0),
+            entries: [
+                {binding: 0, resource: {buffer: this.uniformBuffer}},
+                {binding: 1, resource: this.texture.createView()},
+                {binding: 2, resource: this.sampler}
+            ]
+        });
+
+        this.colorAttachment = {
+            view: null, // Will be set in render()
+            clearValue: {r: 0, g: 0, b: 0, a: 1},
+            loadOp: 'clear',
+            loadValue: {r: 0, g: 0, b: 0, a: 1},
+            storeOp: 'store'
+        };
     }
 }

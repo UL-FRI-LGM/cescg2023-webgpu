@@ -9,49 +9,47 @@ import { OrbitCamera } from '../common/engine/util/orbit-camera.js';
 // Task 2.3: import mat4 for our model matrix
 import { mat4 } from '../../lib/gl-matrix-module.js';
 
-const SHADER_NAME = 'Adjust Vertex Layout';
-
-const shaders = {};
-const images = {};
+const SAMPLE_NAME = 'Adjust Vertex Layout';
 
 export class AdjustedVertexLayout extends Sample {
-    async load() {
-        // Load resources
-        const res = await Promise.all([
-            Loader.loadShaderCode('adjust-vertex-layout.wgsl'),
-            Loader.loadImage('brick.png')
-        ]);
-
-        // Set shaders
-        shaders[SHADER_NAME] = res[0];
-
-        // Set images
-        images.brick = res[1];
-    }
-
-    init() {
+    async init() {
         // TASK 2.2: add a user-controlled camera
         this.camera = new OrbitCamera(this.canvas);
 
-        // Set brick texture
-        const image = images.brick;
-        const texture = this.device.createTexture({
-            size: [image.width, image.height],
-            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
-            format: 'rgba8unorm',
-        });
-        this.device.queue.copyExternalImageToTexture(
-            {source: image},
-            {texture: texture},
-            [image.width, image.height]
-        );
+        await this.#initResources();
+        await this.#initPipelines();
+    }
 
-        // Create sampler
-        const sampler = this.device.createSampler({
-            magFilter: 'linear',
-            minFilter: 'linear'
-        });
+    get name() {
+        return SAMPLE_NAME;
+    }
 
+    render() {
+        // TASK 2.2: update the camera...
+        this.camera.update();
+
+        // TASK 2.3: replace the triangle's offsets with a transformation matrix (we just use the identity matrix here)
+        const modelMatrix = mat4.create(1.0);
+        const uniformArray = new Float32Array([
+            ...this.camera.view,
+            ...this.camera.projection,
+            ...modelMatrix
+        ]);
+        this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformArray);
+
+        const commandEncoder = this.device.createCommandEncoder();
+        this.colorAttachment.view = this.context.getCurrentTexture().createView();
+        const renderPass = commandEncoder.beginRenderPass({colorAttachments: [this.colorAttachment]});
+        renderPass.setPipeline(this.pipeline);
+        renderPass.setBindGroup(0, this.bindGroup);
+        renderPass.setVertexBuffer(0, this.vertexBuffer);
+        renderPass.setIndexBuffer(this.indexBuffer, 'uint16');
+        renderPass.drawIndexed(3);
+        renderPass.end();
+        this.device.queue.submit([commandEncoder.finish()]);
+    }
+
+    async #initResources() {
         // Prepare vertex buffer
         // Task 2.3: each vertex now has a position (vec3f), a normal (vec3f), and texture coordinates (vec2f)
         const vertices = new Float32Array([
@@ -88,62 +86,37 @@ export class AdjustedVertexLayout extends Sample {
         new Uint16Array(this.indexBuffer.getMappedRange()).set(indices);
         this.indexBuffer.unmap();
 
+        // Set up brick texture
+        const image = await Loader.loadImage('brick.png');
+        this.texture = this.device.createTexture({
+            size: [image.width, image.height],
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+            format: 'rgba8unorm',
+        });
+        this.device.queue.copyExternalImageToTexture(
+            {source: image},
+            {texture: this.texture},
+            [image.width, image.height]
+        );
+
+        // Create sampler
+        this.sampler = this.device.createSampler({
+            magFilter: 'linear',
+            minFilter: 'linear'
+        });
+
         // Prepare uniform buffer
         this.uniformBuffer = this.device.createBuffer({
             // Task 2.3: adjust the uniform buffer's size to hold three 4x4 matrices instead of two matrices and a vec2
             size: 192,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
-
-        // Prepare bind group
-        this.bindGroup = this.device.createBindGroup({
-            layout: this.pipeline.getBindGroupLayout(0),
-            entries: [
-                {binding: 0, resource: {buffer: this.uniformBuffer}},
-                {binding: 1, resource: texture.createView()},
-                {binding: 2, resource: sampler}
-            ]
-        });
-
-        this.colorAttachment = {
-            view: null, // Will be set in draw()
-            clearValue: {r: 0, g: 0, b: 0, a: 1},
-            loadOp: 'clear',
-            loadValue: {r: 0, g: 0, b: 0, a: 1},
-            storeOp: 'store'
-        };
-
-        this.animate();
     }
 
-    render() {
-        // TASK 2.2: update the camera and upload its view and projection matrices to our uniform buffer
-        this.camera.update();
-        // TASK 2.3: replace the triangle's offsets with a transformation matrix (we just use the identity matrix here)
-        const modelMatrix = mat4.create(1.0);
-        const uniformArray = new Float32Array([...this.camera.view, ...this.camera.projection, ...modelMatrix]);
-
-        this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformArray);
-
-        const commandEncoder = this.device.createCommandEncoder();
-        this.colorAttachment.view = this.context.getCurrentTexture().createView();
-        const renderPass = commandEncoder.beginRenderPass({colorAttachments: [this.colorAttachment]});
-        renderPass.setPipeline(this.pipeline);
-        renderPass.setBindGroup(0, this.bindGroup);
-        renderPass.setVertexBuffer(0, this.vertexBuffer);
-        renderPass.setIndexBuffer(this.indexBuffer, 'uint16');
-        renderPass.drawIndexed(3);
-        renderPass.end();
-
-        this.device.queue.submit([commandEncoder.finish()]);
-    }
-
-    shaders() {
-        return shaders;
-    }
-
-    reloadShader(shaderName, shaderCode) {
-        const shaderModule = this.device.createShaderModule({code: shaders[SHADER_NAME]});
+    async #initPipelines() {
+        // Task 2.3: adapt shader to our new vertex layout
+        const code = await Loader.loadShaderCode('adjust-vertex-layout.wgsl');
+        const shaderModule = this.device.createShaderModule({code});
         this.pipeline = this.device.createRenderPipeline({
             layout: 'auto',
             vertex: {
@@ -183,6 +156,24 @@ export class AdjustedVertexLayout extends Sample {
                 ],
             },
         });
+
+        // Prepare bind group
+        this.bindGroup = this.device.createBindGroup({
+            layout: this.pipeline.getBindGroupLayout(0),
+            entries: [
+                {binding: 0, resource: {buffer: this.uniformBuffer}},
+                {binding: 1, resource: this.texture.createView()},
+                {binding: 2, resource: this.sampler}
+            ]
+        });
+
+        this.colorAttachment = {
+            view: null, // Will be set in render()
+            clearValue: {r: 0, g: 0, b: 0, a: 1},
+            loadOp: 'clear',
+            loadValue: {r: 0, g: 0, b: 0, a: 1},
+            storeOp: 'store'
+        };
     }
 
     stop() {
