@@ -91,10 +91,8 @@ export class Sample {
         this.#animating = true;
 
         const update = _ => {
-            // Unused for now TODO
             const now = performance.now();
             const deltaTime = now - lastFrame;
-            //this._fps.textContent = (1000 / deltaTime).toFixed(3);
             lastFrame = now;
 
             this.render(deltaTime);

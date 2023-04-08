@@ -81,12 +81,6 @@ async function main(gui) {
     };
     window.addEventListener('resize', () => configure());
 
-    // Set up the shader editor
-    const editor = new Editor(document.getElementById('editor'), device, (shaderName, shaderCode) => {
-        activeSample.reloadShader(shaderName, shaderCode);
-        activeSample.render();
-    });
-
     // Just to be sure, check if all samples extend the Sample class
     const samples = Object.keys(SAMPLES).filter(name => {
         const valid = SAMPLES[name].prototype instanceof Sample;
@@ -102,15 +96,17 @@ async function main(gui) {
     // Add samples to UI
     {
         const activateSample = async (sampleName) => {
+            if (activeSample) activeSample.stop();
             gui.clear();
             const nextActiveSample = new SAMPLES[sampleName](gui, gpu, adapter, device, context, canvas.node);
+
+            // todo: simplify this block into one async init function
             await nextActiveSample.load();
             for (const [shaderName, shaderCode] of Object.entries(nextActiveSample.shaders())) {
                 nextActiveSample.reloadShader(shaderName, shaderCode);
             }
             nextActiveSample.init();
-            editor.shaders = nextActiveSample.shaders();
-            if (activeSample) activeSample.stop();
+
             activeSample = nextActiveSample;
             configure();
         };
@@ -122,34 +118,9 @@ async function main(gui) {
             samplesSelect.appendChild(option);
         }
         samplesSelect.addEventListener('change', _ => {
-            activeSample.stop();
             activateSample(samplesSelect.value);
         });
         samplesSelect.value = samples[0];
         await activateSample(samplesSelect.value);
-    }
-
-    // Add settings to UI
-    {
-        const settingsSelect = document.getElementById('settings');
-        const settings = {};
-        const addSetting = (name, onSelected) => {
-            const option = document.createElement('option');
-            option.value = name;
-            option.textContent = name;
-            settingsSelect.appendChild(option);
-            settings[name] = onSelected;
-        }
-        settingsSelect.addEventListener('change', () => {
-            settings[settingsSelect.value]()
-            settingsSelect.value = firstOption;
-        });
-        const firstOption = '- select -';
-        addSetting(firstOption, () => {
-        });
-        addSetting('Toggle GUI', () => gui.node.style.display = gui.node.style.display === 'none' ? '' : 'none');
-        addSetting('Toggle shader editor', () => {
-            editor.node.style.display = editor.node.style.display === 'none' ? '' : 'none'
-        });
     }
 }
