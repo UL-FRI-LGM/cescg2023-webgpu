@@ -6,10 +6,6 @@ import { Loader } from '../common/engine/util/loader.js';
 // Task 2.2: import the OrbitCamera class
 import { OrbitCamera } from '../common/engine/util/orbit-camera.js';
 
-// todo: maybe use the loader instead?
-// Task 2.4: import the "bunny" model
-import bunny from '../common/models/bunny.json' assert { type: 'json' };
-
 // Task 2.4: import the Model class
 import { Model } from '../common/engine/util/model.js';
 
@@ -23,9 +19,8 @@ export class ModelExplorer extends Sample {
         // TASK 2.2: add a user-controlled camera
         this.camera = new OrbitCamera(this.canvas);
 
-        // todo: maybe use the loader instead?
         // Task 2.4: add a 3D model
-        this.model = new Model(bunny);
+        this.model = new Model(await Loader.loadModel("bunny.obj"));
 
         await this.#initResources();
         await this.#initPipelines();
