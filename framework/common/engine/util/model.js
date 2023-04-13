@@ -2,7 +2,7 @@
 
 import { Node } from '../core/node.js';
 import { Transform } from '../core/transform.js';
-import { Mesh } from '../core/mesh.js';
+import { Mesh, Vertex } from '../core/mesh.js';
 
 export class Model {
     #model;
@@ -24,6 +24,18 @@ export class Model {
 
     get numIndices() {
         return this.#model.getComponentOfType(Mesh).numIndices;
+    }
+
+    get vertexBufferSize() {
+        return this.numVertices * Vertex.vertexStride();
+    }
+
+    get indicesBufferSize() {
+        return this.numIndices * Vertex.indexStride();
+    }
+
+    get indexType() {
+        return Vertex.indexType();
     }
 
     writeVerticesToMappedRange(mappedRange) {

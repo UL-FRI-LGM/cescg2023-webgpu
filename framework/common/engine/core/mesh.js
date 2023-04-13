@@ -23,12 +23,20 @@ export class Vertex {
         return this.#textureCoordinates;
     }
 
+    static indexType() {
+        return 'uint16';
+    }
+
+    static indexStride() {
+        return Uint16Array.BYTES_PER_ELEMENT;
+    }
+
     static vertexStrideInFloats() {
         return 8;
     }
 
     static vertexStride() {
-        return 32;
+        return Vertex.vertexStrideInFloats() * Float32Array.BYTES_PER_ELEMENT;
     }
 
     static vertexLayout() {
