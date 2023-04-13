@@ -89,7 +89,7 @@ export class DepthBuffer extends Sample {
         //  - the Vertex class provides helper functions for figuring out the vertex layout
         //  - the Model class provides helper functions for writing its vertices to a mapped buffer range
         this.vertexBuffer = this.device.createBuffer({
-            size: Vertex.vertexStride() * Float32Array.BYTES_PER_ELEMENT * this.model.numVertices,
+            size: Vertex.vertexStride() * this.model.numVertices,
             usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
             mappedAtCreation: true,
         });
