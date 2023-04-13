@@ -23,12 +23,20 @@ export class Vertex {
         return this.#textureCoordinates;
     }
 
+    static indexType() {
+        return 'uint16';
+    }
+
+    static indexStride() {
+        return Uint16Array.BYTES_PER_ELEMENT;
+    }
+
     static vertexStrideInFloats() {
         return 8;
     }
 
     static vertexStride() {
-        return 32;
+        return Vertex.vertexStrideInFloats() * Float32Array.BYTES_PER_ELEMENT;
     }
 
     static vertexLayout() {
@@ -59,13 +67,13 @@ export class Mesh {
     #vertices;
     #indices;
 
-    constructor({vertices = [], normals = [], texcoords = [], indices = []}) {
-        const hasNormals = normals.length === vertices.length;
-        const hasTexCoords = (texcoords.length / 2) * 3 === vertices.length;
+    constructor({positions = [], normals = [], texcoords = [], indices = []}) {
+        const hasNormals = normals.length === positions.length;
+        const hasTexCoords = (texcoords.length / 2) * 3 === positions.length;
 
         this.#vertices = [];
-        for (let i = 0; i < vertices.length / 3; ++i) {
-            const position = vec3.fromValues(vertices[i * 3], vertices[i * 3 + 1], vertices[i * 3 + 2]);
+        for (let i = 0; i < positions.length / 3; ++i) {
+            const position = vec3.fromValues(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
             const normal = hasNormals ? vec3.fromValues(normals[i * 3], normals[i * 3 + 1], normals[i * 3 + 2]) : vec3.create();
             const textureCoordinates = hasTexCoords ? vec2.fromValues(texcoords[i * 2], texcoords[i * 2 + 1]) : vec2.create();
 
