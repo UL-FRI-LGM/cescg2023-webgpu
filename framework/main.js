@@ -79,6 +79,11 @@ async function main(gui) {
         activeSample.render();
     };
     window.addEventListener('resize', () => configure());
+    window.addEventListener('beforeunload', _ => {
+        // todo: this should also destroy buffers and textures but needs to wait until the current frame is rendered
+        activeSample.stop();
+        return null;
+    });
 
     // Just to be sure, check if all samples extend the Sample class
     const samples = Object.keys(SAMPLES).filter(name => {
