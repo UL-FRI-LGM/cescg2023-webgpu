@@ -20,7 +20,7 @@ export class ModelExplorer extends Sample {
         this.camera = new OrbitCamera(this.canvas);
 
         // Task 2.4: add a 3D model
-        this.model = new Model(await Loader.loadModel("bunny.obj"));
+        this.model = new Model(await Loader.loadModel("bunny.json"));
 
         await this.#initResources();
         await this.#initPipelines();

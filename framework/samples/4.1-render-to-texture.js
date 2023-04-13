@@ -23,7 +23,7 @@ export class RenderToTexture extends Sample {
         this.camera = new OrbitCamera(this.canvas);
 
         // Task 2.4: add a 3D model
-        this.model = new Model(await Loader.loadModel("bunny.obj"));
+        this.model = new Model(await Loader.loadModel("bunny.json"));
 
         // Task 2.5: add a state tracking variable to switch between render modes
         this.showNormals = false;
