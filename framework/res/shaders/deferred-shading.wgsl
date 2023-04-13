@@ -98,13 +98,11 @@ fn compute(@builtin(global_invocation_id) global_id: vec3u) {
 
     if all(albedo == vec3f()) {
         textureStore(output, global_id.xy, vec4f(vec3f(), 1.0));
-        return;
+    } else {
+        var color = AMBIENT_LIGHT;
+        for (var i = 0u; i < arrayLength(&uLights); i += 1u) {
+            color += compute_lighting(position, normal, albedo, i);
+        }
+        textureStore(output, global_id.xy, vec4f(color, 1.0));
     }
-
-    var color = AMBIENT_LIGHT;
-    for (var i = 0u; i < arrayLength(&uLights); i += 1u) {
-        color += compute_lighting(position, normal, albedo, i);
-    }
-
-    textureStore(output, global_id.xy, vec4f(color, 1.0));
 }
