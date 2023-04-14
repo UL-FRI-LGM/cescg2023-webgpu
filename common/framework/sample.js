@@ -1,5 +1,7 @@
 'use strict';
 
+import { GUI } from '../../lib/dat.gui.module.js';
+
 export class Sample {
     #animating;
     #animationFrameRequest = null;
@@ -14,13 +16,13 @@ export class Sample {
      * @param context WebGPU context of HTMLCanvasElement
      * @param canvas
      */
-    constructor(gui, gpu, adapter, device, context, canvas) {
-        this.gui = gui;
+    constructor(gpu, adapter, device, context, canvas, gui=null) {
         this.gpu = gpu;
         this.adapter = adapter;
         this.device = device;
         this.context = context;
         this.canvas = canvas;
+        this.gui = gui;
         this.#animating = false;
 
         // todo: add pointerevent handlers or remove Sample.mouse function
@@ -106,11 +108,7 @@ export class Sample {
         }
     }
 
-    static register(samples) {
-        samples[this.prototype.constructor.name] = this;
-    }
-
-    static async run(canvas) {
+    static async run(canvas, guiDiv = null) {
         // Initialize WebGPU
         const gpu = navigator.gpu;
         const adapter = gpu && await gpu.requestAdapter();
@@ -126,9 +124,23 @@ export class Sample {
             format: gpu.getPreferredCanvasFormat(),
         });
 
+        // Initialize GUI, if a gui div was given
+        let gui = null;
+        if (guiDiv) {
+            gui = new GUI({ autoplace: false });
+            guiDiv.appendChild(gui.domElement);
+        }
+
         // Initialize Sample
-        const instance = new this.prototype.constructor(null, gpu, adapter, device, context, canvas);
+        const instance = new this.prototype.constructor(gpu, adapter, device, context, canvas, gui);
         await instance.init();
+
+        if (gui) {
+            guiDiv.setAttribute(
+                'style',
+                `width:${gui.domElement.style.width};height:${gui.domElement.childNodes[0].style.height}`
+            );
+        }
 
         window.addEventListener('beforeunload', _ => {
             instance.stop();

@@ -1,6 +1,5 @@
 'use strict';
 
-import { GUI } from './lib/dat.gui.module.js';
 import { Sample } from './common/framework/sample.js';
 import { Loader } from './common/framework/util/loader.js';
 
@@ -12,9 +11,8 @@ export class Workshop extends Sample {
             x: 0,
             y: 0,
         }
-        const gui = new GUI();
-        gui.add(this.offset, 'x', -1, 1);
-        gui.add(this.offset, 'y', -1, 1);
+        this.gui.add(this.offset, 'x', -1, 1);
+        this.gui.add(this.offset, 'y', -1, 1);
 
         await this.#initResources();
         await this.#initPipelines();

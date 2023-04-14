@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>RTVis WebGPU Playground</title>
+    <title>CESCG 2023: WebGPU Workshop</title>
     <link rel="stylesheet" href="common/style.css">
 
     <!-- Origin Trial Token so that WebGPU works with regular Chrome -->
@@ -30,8 +30,8 @@
     </div>
     <div id="viewport">
         <canvas id="webGpuCanvas" tabindex="1"></canvas>
+        <div id="gui"></div>
     </div>
-
     <script src="lib/dat.gui.min.js"></script>
     <script type="module">
         import { Workshop } from './workshop.js';
@@ -40,8 +40,9 @@
         const canvas = document.getElementById('webGpuCanvas');
         canvas.width = viewport.clientWidth;
         canvas.height = viewport.clientHeight;
+        const guiDiv = document.getElementById('gui');
 
-        Workshop.run(canvas).catch(error => {
+        Workshop.run(canvas, guiDiv).catch(error => {
             console.error(error);
             alert(`Unrecoverable error. Please check the console for details.`);
         });
