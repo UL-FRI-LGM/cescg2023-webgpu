@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RTVis WebGPU Playground</title>
+    <link rel="stylesheet" href="common/style.css">
+
+    <!-- Origin Trial Token so that WebGPU works with regular Chrome -->
+    <meta http-equiv="origin-trial" content="AtlUZcGZr3QNof4eGiuu8DOqA9fR/E5UZJGEcxx40n+C2mBoBxRyPV0aA1z9kYqsBLfWGjW7cGm35LwbktedsQwAAABPeyJvcmlnaW4iOiJodHRwczovL3dlbGtvLmdpdGh1Yi5pbzo0NDMiLCJmZWF0dXJlIjoiV2ViR1BVIiwiZXhwaXJ5IjoxNjc1MjA5NTk5fQ==">
+
+</head>
+<body>
+    <!-- Layout -->
+    <div id="bar">
+        <a href="https://www.cg.tuwien.ac.at/" target="_blank">
+            <img src="common/Klex.svg" alt="CG institute logo">
+        </a>
+        <a href="https://www.cg.tuwien.ac.at/" target="_blank">
+            <img src="common/Klex.svg" alt="CG institute logo">
+        </a>
+        <span id="title">
+            <a href="https://github.com/Welko/webgpu-playground" target="_blank">CESCG 2023: WebGPU Workshop</a>
+            <span>
+                by
+                <a href="" target="_blank">Žiga Lesar,</a>
+                <a href="" target="_blank">Lukas Herzberger,</a>
+                <a href="mailto:lmelo@cg.tuwien.ac.at" target="_blank">Lucas Melo</a>
+            </span>
+        </span>
+    </div>
+    <div id="viewport">
+        <canvas id="webGpuCanvas" tabindex="1"></canvas>
+    </div>
+
+    <script src="lib/dat.gui.min.js"></script>
+    <script type="module">
+        import { Workshop } from './workshop.js';
+
+        const viewport = document.getElementById('viewport');
+        const canvas = document.getElementById('webGpuCanvas');
+        canvas.width = viewport.clientWidth;
+        canvas.height = viewport.clientHeight;
+
+        Workshop.run(canvas).catch(error => {
+            console.error(error);
+            alert(`Unrecoverable error. Please check the console for details.`);
+        });
+    </script>
+</body>
+</html>
