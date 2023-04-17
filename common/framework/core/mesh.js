@@ -107,7 +107,7 @@ export class Mesh {
             min = vec3.min(min, min, position);
             max = vec3.max(max, max, position);
         }
-        this.#indices = new Uint16Array(indices);
+        this.#indices = new Uint32Array(indices);
         this.#bounds = new AABB({min, max});
     }
 
@@ -144,10 +144,10 @@ export class Mesh {
     }
 
     static indexType() {
-        return 'uint16';
+        return 'uint32';
     }
 
     static indexStride() {
-        return Uint16Array.BYTES_PER_ELEMENT;
+        return Uint32Array.BYTES_PER_ELEMENT;
     }
 }

@@ -65,7 +65,9 @@ export class Workshop extends Sample {
         renderPass.setPipeline(this.pipeline);
         renderPass.setBindGroup(0, this.bindGroup);
         renderPass.setVertexBuffer(0, this.vertexBuffer);
-        renderPass.setIndexBuffer(this.indexBuffer, 'uint16');
+
+        // Task 2.3: the 'Model' class uses 'uint32' as index type
+        renderPass.setIndexBuffer(this.indexBuffer, this.model.indexType);
 
         // Task 2.3: draw all of the model's indices
         renderPass.drawIndexed(this.model.numIndices);
@@ -75,29 +77,12 @@ export class Workshop extends Sample {
     }
 
     async #initResources() {
+        // Task 2.3: replace the triangle's vertices and indices with the model's:
+        //   The 'Model' class provides helper functions to create the vertex and index buffers directly.
         // Prepare vertex buffer
-        // Task 2.3: replace the triangle's vertices with our model's vertices
-        //  - the Vertex class provides helper functions for figuring out the vertex layout
-        //  - the Model class provides helper functions for writing its vertices to a mapped buffer range
-        this.vertexBuffer = this.device.createBuffer({
-            size: Vertex.vertexStride() * this.model.numVertices,
-            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-            mappedAtCreation: true,
-        });
-        this.model.writeVerticesToMappedRange(new Float32Array(this.vertexBuffer.getMappedRange()));
-        this.vertexBuffer.unmap();
-
+        this.vertexBuffer = this.model.createVertexBuffer(this.device);
         // Prepare index buffer
-        // Task 2.3: replace the triangle's indices with our model's vertices
-        //  - the Vertex class provides helper functions for figuring out the vertex layout
-        //  - the Model class provides helper functions for writing its indices to a mapped buffer range
-        this.indexBuffer = this.device.createBuffer({
-            size: Uint16Array.BYTES_PER_ELEMENT * this.model.numIndices,
-            usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
-            mappedAtCreation: true,
-        });
-        this.model.writeIndicesToMappedRange(new Uint16Array(this.indexBuffer.getMappedRange()));
-        this.indexBuffer.unmap();
+        this.indexBuffer = this.model.createIndexBuffer(this.device);
 
         // Set up brick texture
         const image = await this.assetLoader.loadImage('images/brick.png');

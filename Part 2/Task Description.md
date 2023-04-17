@@ -272,25 +272,10 @@ import bunny from './common/models/bunny.json' assert { type: 'json' };
         // ...
     }
 ```
-* In `#initResources`, adjust the size of the vertex buffer to hold all the model's vertices and then upload the vertices to the GPU:
+* In `#initResources`, replace the triangle's vertex and index buffers with the model's:
 ```js
-    this.vertexBuffer = this.device.createBuffer({
-        size: Vertex.vertexStride() * this.model.numVertices,
-        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-        mappedAtCreation: true,
-    });
-    this.model.writeVerticesToMappedRange(new Float32Array(this.vertexBuffer.getMappedRange()));
-    this.vertexBuffer.unmap();
-```
-* Similarly, adjust the index buffer's size and upload the model's indices to the GPU instead of the `indices` array:
-```js
-    this.indexBuffer = this.device.createBuffer({
-        size: Uint16Array.BYTES_PER_ELEMENT * this.model.numIndices,
-        usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
-        mappedAtCreation: true,
-    });
-    this.model.writeIndicesToMappedRange(new Uint16Array(this.indexBuffer.getMappedRange()));
-    this.indexBuffer.unmap();
+    this.vertexBuffer = this.model.createVertexBuffer(this.device);
+    this.indexBuffer = this.model.createIndexBuffer(this.device);
 ```
 * In `render`, write the model's transformation matrix to the uniform buffer:
 ```js
@@ -300,6 +285,11 @@ import bunny from './common/models/bunny.json' assert { type: 'json' };
         ...this.camera.projection,
         ...modelMatrix
     ]);
+```
+* In `render`, make sure to use the correct index type (the `Model` class uses `'uint32'`!) and number of indices for drawing the model:
+```js
+renderPass.setIndexBuffer(this.indexBuffer, this.model.indexType); // = 'uint32'
+renderPass.drawIndexed(this.model.numIndices);
 ```
 * Optionally, use the `vertexLayout` provided by the `Vertex` class when creating our render pipeline in `#initPipelines`:
 ```js

@@ -41,12 +41,41 @@ export class Model {
         return this.numVertices * Vertex.vertexStride();
     }
 
-    get indicesBufferSize() {
+    get indexBufferSize() {
         return this.numIndices * Mesh.indexStride();
     }
 
     get indexType() {
         return Mesh.indexType();
+    }
+
+    createBuffers(device) {
+        return {
+            vertexBuffer: this.createVertexBuffer(device),
+            indexBuffer: this.createIndexBuffer(device),
+        }
+    }
+
+    createVertexBuffer(device) {
+        const vertexBuffer = device.createBuffer({
+            size: this.vertexBufferSize,
+            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+            mappedAtCreation: true,
+        });
+        this.writeVerticesToMappedRange(new Float32Array(vertexBuffer.getMappedRange()));
+        vertexBuffer.unmap();
+        return vertexBuffer;
+    }
+
+    createIndexBuffer(device) {
+        const indexBuffer = device.createBuffer({
+            size: this.indexBufferSize,
+            usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+            mappedAtCreation: true,
+        });
+        this.writeIndicesToMappedRange(new Uint32Array(indexBuffer.getMappedRange()));
+        indexBuffer.unmap();
+        return indexBuffer;
     }
 
     writeVerticesToMappedRange(mappedRange) {
