@@ -343,5 +343,85 @@ Luckily, the fix for this problem is relatively easy: we just need to create a d
 ```
 
 ## Task 2.5: Set a Culling Mode
-TODO: I think it would make more sense to have this as a task and switch between pipelines on user interactions instead of rendering normals here
+With depth testing enabled, the bunny now gets rendered correctly.
+However, when we zoom in too far, we can see the inside of our bunny.
+Depending on your application, this might not be what you want.
+In this task we'll look into culling modes and how they can fix this issue.
+
+We'll create two separate pipelines which both use the same shader, and use keyboard inputs to switch between the two.
+The culling mode for a render pipeline is set at creation time using the `primitive` member of the pipeline descriptor object:
+```js
+    device.createRenderPipeline({
+        // ...
+        primitive: {
+            cullMode: 'back', // possible values: 'none' (default), 'back', 'front'
+            // ...
+        }
+    });
+```
+The `primitive` member has the type [GPUPrimitiveState](https://www.w3.org/TR/webgpu/#dictdef-gpuprimitivestate) which has a bunch of other options to define the primitives, i.e., the triangles, lines, or points, the render pipeline will draw.
+For example, it defines the way a front facing triangle is defined by the pipeline
+In this workshop we'll stick to the defaults for everything except the culling mode, but feel free to experiment with other options.
+
+Up until now, we've let WebGPU determine the pipeline and bind group layouts automatically.
+This has the drawback that bind groups created from this automatically determined layout can only be used with this specific pipeline.
+However, with two pipelines that are so similar that they only differ in their culling mode, it makes sense to define these layouts explicitly so that we can use one bind group for both pipelines.
+Bind group layout creating is simple. We just have to look at the bindings defined in our shader and in what shader stages the individual bindings are used in and describe them in a bind group layout descriptor object:
+```js
+        const bindGroupLayout = this.device.createBindGroupLayout({
+            entries: [
+                // @group(0) @binding(0) var<uniform> uniforms : Uniforms;
+                {
+                    binding: 0,
+                    // we only use this binding in the vertex stage
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: {},
+                },
+                // @group(0) @binding(1) var uTexture : texture_2d<f32>;
+                {
+                    binding: 1,
+                    // we only use this binding in the fragment stage
+                    visibility: GPUShaderStage.FRAGMENT,
+                    texture: {},
+                },
+                // @group(0) @binding(2) var uSampler : sampler;
+                {
+                    binding: 2,
+                    // we only use this binding in the fragment stage
+                    visibility: GPUShaderStage.FRAGMENT,
+                    sampler: {},
+                }
+            ]
+        });
+```
+
+To create a pipeline layout, we simply pass an array containing all bind group layouts required for the pipeline in the pipeline layout descriptor object when creating the layout:
+```js
+    const pipelineLayout = this.device.createPipelineLayout({
+        bindGroupLayouts: [
+            bindGroupLayout, // @group 0
+        ]
+    });
+```
+
+For this task...
+* In `#initPipelines`, create a bind group layout matching the bindings in our shader.
+* In `#initPipelines`, create a bind group using the bind group layout created in the first step.
+* In `#initPipelines`, create a pipeline layout using the bind group layout created in the first step.
+* In `#initPipelines`, create a pipeline that culls back faces and store it in the `Workshop` instance.
+* In `#initPipelines`, create a pipeline that culls front faces and store it in the `Workshop` instance.
+* In `#initPipelines`, store one pipeline as the default pipeline in the `Workshop` instance.
+* Switch between pipelines on keyboard inputs, e.g., using the `key` method of our `Workshop` class:
+```js
+    key(type, keys) {
+        if (type === 'up' && (keys.includes('c') || keys.includes('C'))) {
+            this.cullBackFaces = !this.cullBackFaces;
+            if (this.cullBackFaces) {
+                this.pipeline = this.backFaceCullingPipeline;
+            } else {
+                this.pipeline = this.frontFaceCullingPipeline;
+            }
+        }
+    }
+```
 

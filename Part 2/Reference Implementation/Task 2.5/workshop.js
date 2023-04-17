@@ -35,10 +35,8 @@ export class Workshop extends Sample {
             this.cullBackFaces = !this.cullBackFaces;
             if (this.cullBackFaces) {
                 this.pipeline = this.backFaceCullingPipeline;
-                this.bindGroup = this.backFaceCullingBindGroup;
             } else {
                 this.pipeline = this.frontFaceCullingPipeline;
-                this.bindGroup = this.frontFaceCullingBindGroup;
             }
         }
     }
@@ -124,9 +122,41 @@ export class Workshop extends Sample {
         const code = await new Loader().loadText('shader.wgsl');
         const shaderModule = this.device.createShaderModule({code});
 
+        // Task 2.5: define the bind group layout explicitly
+        const bindGroupLayout = this.device.createBindGroupLayout({
+            entries: [
+                // uniform buffer
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: {},
+                },
+                // texture
+                {
+                    binding: 1,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    texture: {},
+                },
+                // sampler
+                {
+                    binding: 2,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    sampler: {},
+                }
+            ]
+        });
+
+        // Task 2.5: define the pipeline layout explicitly
+        const pipelineLayout = this.device.createPipelineLayout({
+            bindGroupLayouts: [
+                bindGroupLayout, // @group 0
+            ]
+        });
+
         // Task 2.5: add two pipelines: one that culls back faces and one that culls front faces
         const pipelineDescriptorBase = {
-            layout: 'auto',
+            // Task 2.5: define the pipeline layout explicitly
+            layout: pipelineLayout,
             vertex: {
                 module: shaderModule,
                 entryPoint: 'vertex',
@@ -159,16 +189,6 @@ export class Workshop extends Sample {
             }
         });
 
-        // Prepare bind group
-        this.backFaceCullingBindGroup = this.device.createBindGroup({
-            layout: this.backFaceCullingPipeline.getBindGroupLayout(0),
-            entries: [
-                {binding: 0, resource: {buffer: this.uniformBuffer}},
-                {binding: 1, resource: this.texture.createView()},
-                {binding: 2, resource: this.sampler}
-            ]
-        });
-
         this.frontFaceCullingPipeline = this.device.createRenderPipeline({
             ...pipelineDescriptorBase,
             primitive: {
@@ -176,18 +196,17 @@ export class Workshop extends Sample {
             }
         });
 
+        this.pipeline = this.backFaceCullingPipeline;
+
         // Prepare bind group
-        this.frontFaceCullingBindGroup = this.device.createBindGroup({
-            layout: this.frontFaceCullingPipeline.getBindGroupLayout(0),
+        this.bindGroup = this.device.createBindGroup({
+            layout: bindGroupLayout,
             entries: [
                 {binding: 0, resource: {buffer: this.uniformBuffer}},
                 {binding: 1, resource: this.texture.createView()},
                 {binding: 2, resource: this.sampler}
             ]
         });
-
-        this.pipeline = this.backFaceCullingPipeline;
-        this.bindGroup = this.backFaceCullingBindGroup;
 
         this.colorAttachment = {
             view: null, // Will be set in render()
