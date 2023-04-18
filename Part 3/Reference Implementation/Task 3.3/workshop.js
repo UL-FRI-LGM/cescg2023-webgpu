@@ -13,13 +13,8 @@ export class Workshop extends Sample {
     async init() {
         this.assetLoader = new Loader({basePath: '../../../common/assets'});
 
-        // Task 2.1: add a user-controlled camera
         this.camera = new OrbitCamera(this.canvas);
-
-        // Task 2.3: add a 3D model
         this.model = new Model(await this.assetLoader.loadModel('models/bunny.json'));
-
-        // Task 2.5: add a culling mode
         this.cullBackFaces = true;
 
         await this.#initResources();
@@ -32,51 +27,40 @@ export class Workshop extends Sample {
             this.cullBackFaces = !this.cullBackFaces;
             if (this.cullBackFaces) {
                 this.pipeline = this.backFaceCullingPipeline;
-                this.bindGroup = this.backFaceCullingBindGroup;
             } else {
                 this.pipeline = this.frontFaceCullingPipeline;
-                this.bindGroup = this.frontFaceCullingBindGroup;
             }
         }
     }
 
     render() {
-        // Task 2.1: update the camera...
         this.camera.update();
 
-        // Task 2.3: replace the default matrix with the model's transformation matrix
-        const modelMatrix = this.model.modelMatrix;
         const uniformArray = new Float32Array([
             ...this.camera.view,
             ...this.camera.projection,
-            ...modelMatrix
+            ...this.model.modelMatrix
         ]);
         this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformArray);
 
         const commandEncoder = this.device.createCommandEncoder();
+
         this.colorAttachment.view = this.context.getCurrentTexture().createView();
         const renderPass = commandEncoder.beginRenderPass({
             colorAttachments: [this.colorAttachment],
-            // Task 2.4 use the depth-stencil attachment
             depthStencilAttachment: this.depthStencilAttachment,
         });
         renderPass.setPipeline(this.pipeline);
         renderPass.setBindGroup(0, this.bindGroup);
         renderPass.setVertexBuffer(0, this.vertexBuffer);
-
-        // Task 2.3: the 'Model' class uses 'uint32' as index type
         renderPass.setIndexBuffer(this.indexBuffer, this.model.indexType);
-
-        // Task 2.3: draw all of the model's indices
         renderPass.drawIndexed(this.model.numIndices);
-
         renderPass.end();
+
         this.device.queue.submit([commandEncoder.finish()]);
     }
 
     async #initResources() {
-        // Task 2.3: replace the triangle's vertices and indices with the model's:
-        //   The 'Model' class provides helper functions to create the vertex and index buffers directly.
         // Prepare vertex buffer
         this.vertexBuffer = this.model.createVertexBuffer(this.device);
         // Prepare index buffer
@@ -103,12 +87,11 @@ export class Workshop extends Sample {
 
         // Prepare uniform buffer
         this.uniformBuffer = this.device.createBuffer({
-            // Task 2.2: adjust the uniform buffer's size to hold three 4x4 matrices instead of two matrices and a vec2
             size: 192,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
 
-        // Task 2.4 create a depth texture
+        // Create a depth buffer
         this.depthTexture = this.device.createTexture({
             size: [this.canvas.width, this.canvas.height],
             format: 'depth24plus',
@@ -130,20 +113,53 @@ export class Workshop extends Sample {
     }
 
     async #initPipelines() {
-        // Task 2.3: adapt shader to our new uniform buffer
         const code = await new Loader().loadText('shader.wgsl');
         const shaderModule = this.device.createShaderModule({code});
 
-        // Task 2.5: add two pipelines: one that culls back faces and one that culls front faces
+        const bindGroupLayout = this.device.createBindGroupLayout({
+            entries: [
+                // uniform buffer
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: {},
+                },
+                // texture
+                {
+                    binding: 1,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    texture: {},
+                },
+                // sampler
+                {
+                    binding: 2,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    sampler: {},
+                },
+                // Task 3.3: add the storage buffer to our explicitly defined bind group layout
+                // storage buffer
+                {
+                    binding: 3,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    buffer: {
+                        type: 'read-only-storage', // allowed values are 'uniform' (default), 'storage', and 'read-only-storage'
+                    }
+                }
+            ]
+        });
+
+        const pipelineLayout = this.device.createPipelineLayout({
+            bindGroupLayouts: [
+                bindGroupLayout, // @group 0
+            ]
+        });
+
         const pipelineDescriptorBase = {
-            layout: 'auto',
+            layout: pipelineLayout,
             vertex: {
                 module: shaderModule,
                 entryPoint: 'vertex',
-                buffers: [
-                    // Task 2.3 (optional): use the vertex layout provided by the Vertex class
-                    Vertex.vertexLayout(),
-                ],
+                buffers: [Vertex.vertexLayout()],
             },
             fragment: {
                 module: shaderModule,
@@ -154,7 +170,6 @@ export class Workshop extends Sample {
                     }
                 ],
             },
-            // Task 2.4 enable depth testing
             depthStencil: {
                 depthWriteEnabled: true,
                 depthCompare: 'less',
@@ -169,18 +184,6 @@ export class Workshop extends Sample {
             }
         });
 
-        // Prepare bind group
-        this.backFaceCullingBindGroup = this.device.createBindGroup({
-            layout: this.backFaceCullingPipeline.getBindGroupLayout(0),
-            entries: [
-                {binding: 0, resource: {buffer: this.uniformBuffer}},
-                {binding: 1, resource: this.texture.createView()},
-                {binding: 2, resource: this.sampler},
-                // Task 3.3: add storage buffer binding to bind group
-                {binding: 3, resource: {buffer: this.pointlightsBuffer}},
-            ]
-        });
-
         this.frontFaceCullingPipeline = this.device.createRenderPipeline({
             ...pipelineDescriptorBase,
             primitive: {
@@ -188,9 +191,11 @@ export class Workshop extends Sample {
             }
         });
 
+        this.pipeline = this.backFaceCullingPipeline;
+
         // Prepare bind group
-        this.frontFaceCullingBindGroup = this.device.createBindGroup({
-            layout: this.frontFaceCullingPipeline.getBindGroupLayout(0),
+        this.bindGroup = this.device.createBindGroup({
+            layout: bindGroupLayout,
             entries: [
                 {binding: 0, resource: {buffer: this.uniformBuffer}},
                 {binding: 1, resource: this.texture.createView()},
@@ -199,9 +204,6 @@ export class Workshop extends Sample {
                 {binding: 3, resource: {buffer: this.pointlightsBuffer}},
             ]
         });
-
-        this.pipeline = this.backFaceCullingPipeline;
-        this.bindGroup = this.backFaceCullingBindGroup;
 
         this.colorAttachment = {
             view: null, // Will be set in render()
@@ -211,17 +213,11 @@ export class Workshop extends Sample {
             storeOp: 'store'
         };
 
-        // Task 2.4 create a depth-stencil attachment
         this.depthStencilAttachment = {
             view: this.depthTexture.createView(),
             depthClearValue: 1.0,
             depthLoadOp: 'clear',
             depthStoreOp: 'discard',
         };
-    }
-
-    stop() {
-        super.stop();
-        this.camera.dispose();
     }
 }

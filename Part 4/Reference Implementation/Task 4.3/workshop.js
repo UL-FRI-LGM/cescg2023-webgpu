@@ -11,13 +11,8 @@ export class Workshop extends Sample {
     async init() {
         this.assetLoader = new Loader({basePath: '../../../common/assets'});
 
-        // Task 2.1: add a user-controlled camera
         this.camera = new OrbitCamera(this.canvas);
-
-        // Task 2.3: add a 3D model
         this.model = new Model(await this.assetLoader.loadModel('models/bunny.json'));
-
-        // Task 2.5: add a culling mode
         this.cullBackFaces = true;
 
         await this.#initResources();
@@ -28,14 +23,12 @@ export class Workshop extends Sample {
     key(type, keys) {
         if (type === 'up') {
             if (keys.includes('c') || keys.includes('C')) {
-                this.cullBackFaces = !this.cullBackFaces;
                 // Task 4.1: use our new helper objects
+                this.cullBackFaces = !this.cullBackFaces;
                 if (this.cullBackFaces) {
                     this.createGBufferPipelineData.pipeline = this.createGBufferPipelineData.backFaceCullingPipeline;
-                    this.createGBufferPipelineData.bindGroup = this.createGBufferPipelineData.backFaceCullingBindGroup;
                 } else {
                     this.createGBufferPipelineData.pipeline = this.createGBufferPipelineData.frontFaceCullingPipeline;
-                    this.createGBufferPipelineData.bindGroup = this.createGBufferPipelineData.frontFaceCullingBindGroup;
                 }
             } else if (keys.includes('a') || keys.includes('A')) {
                 this.presentToScreenPipelineData.bindGroup = this.presentToScreenPipelineData.albedoBindGroup;
@@ -50,17 +43,13 @@ export class Workshop extends Sample {
     }
 
     render() {
-        // Task 2.1: update the camera...
         this.camera.update();
 
-        // Task 2.3: replace the default matrix with the model's transformation matrix
-        const modelMatrix = this.model.modelMatrix;
         const uniformArray = new Float32Array([
-            // Task 3.6: add the camera's position (including one float for padding) to our uniform buffer
             ...this.camera.position, 0.0,
             ...this.camera.view,
             ...this.camera.projection,
-            ...modelMatrix
+            ...this.model.modelMatrix
         ]);
         this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformArray);
 
@@ -128,19 +117,18 @@ export class Workshop extends Sample {
 
         // Prepare uniform buffer
         this.uniformBuffer = this.device.createBuffer({
-            // Task 3.6: adjust the uniform buffer's size to hold 16 more bytes (12 for our camera's position and 4 for padding)
             size: 208,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
 
-        // Task 2.4 create a depth texture
+        // Create a depth buffer
         this.depthTexture = this.device.createTexture({
             size: [this.canvas.width, this.canvas.height],
             format: 'depth24plus',
             usage: GPUTextureUsage.RENDER_ATTACHMENT,
         });
 
-        // Task 3.4: create multiple light sources
+        // Create light source buffer
         const pointLightStrideInElements = 8; // 3 (position) + 1 (radius) + 3 (color) + 1 (padding)
         const numLightSources = 20;
         this.pointlightsBuffer = this.device.createBuffer({
@@ -205,20 +193,46 @@ export class Workshop extends Sample {
         //  takes the rendered texture as an input and outputs it to the canvas
         //  To avoid confusion, we pack each pipeline into helper objects
 
-        // Task 2.3: adapt shader to our new uniform buffer
         const code = await new Loader().loadText('create-g-buffer.wgsl');
         const shaderModule = this.device.createShaderModule({code});
 
-        // Task 2.5: add two pipelines: one that culls back faces and one that culls front faces
+        const bindGroupLayout = this.device.createBindGroupLayout({
+            entries: [
+                // uniform buffer
+                {
+                    binding: 0,
+                    // Task 4.3: make the uniform buffer only visible in the vertex stage
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: {},
+                },
+                // texture
+                {
+                    binding: 1,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    texture: {},
+                },
+                // sampler
+                {
+                    binding: 2,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    sampler: {},
+                },
+                // Task 4.3: remove the light source buffer from the bind group layout
+            ]
+        });
+
+        const pipelineLayout = this.device.createPipelineLayout({
+            bindGroupLayouts: [
+                bindGroupLayout, // @group 0
+            ]
+        });
+
         const createGBufferPipelineDescriptorBase = {
-            layout: 'auto',
+            layout: pipelineLayout,
             vertex: {
                 module: shaderModule,
                 entryPoint: 'vertex',
-                buffers: [
-                    // Task 2.3 (optional): use the vertex layout provided by the Vertex class
-                    Vertex.vertexLayout(),
-                ],
+                buffers: [Vertex.vertexLayout()],
             },
             fragment: {
                 module: shaderModule,
@@ -230,7 +244,6 @@ export class Workshop extends Sample {
                     {format: this.gpu.getPreferredCanvasFormat(),},
                 ],
             },
-            // Task 2.4 enable depth testing
             depthStencil: {
                 depthWriteEnabled: true,
                 depthCompare: 'less',
@@ -245,17 +258,6 @@ export class Workshop extends Sample {
             }
         });
 
-        // Prepare bind group
-        const backFaceCullingBindGroup = this.device.createBindGroup({
-            layout: backFaceCullingPipeline.getBindGroupLayout(0),
-            entries: [
-                {binding: 0, resource: {buffer: this.uniformBuffer}},
-                {binding: 1, resource: this.texture.createView()},
-                {binding: 2, resource: this.sampler},
-                // Task 4.3: remove light source buffer from bindings
-            ]
-        });
-
         const frontFaceCullingPipeline = this.device.createRenderPipeline({
             ...createGBufferPipelineDescriptorBase,
             primitive: {
@@ -264,8 +266,8 @@ export class Workshop extends Sample {
         });
 
         // Prepare bind group
-        const frontFaceCullingBindGroup = this.device.createBindGroup({
-            layout: frontFaceCullingPipeline.getBindGroupLayout(0),
+        const createGBufferBindGroup = this.device.createBindGroup({
+            layout: bindGroupLayout,
             entries: [
                 {binding: 0, resource: {buffer: this.uniformBuffer}},
                 {binding: 1, resource: this.texture.createView()},
@@ -300,8 +302,7 @@ export class Workshop extends Sample {
             },
         ];
 
-        // Task 2.6: create a depth-stencil attachment
-        const renderToTextureDepthStencilAttachment = {
+        const createGBufferDepthStencilAttachment = {
             view: this.depthTexture.createView(),
             depthClearValue: 1.0,
             depthLoadOp: 'clear',
@@ -310,15 +311,13 @@ export class Workshop extends Sample {
 
         this.createGBufferPipelineData = {
             pipeline: backFaceCullingPipeline,
-            bindGroup: backFaceCullingBindGroup,
+            bindGroup: createGBufferBindGroup,
             attachments: {
                 colorAttachments: createGBufferColorAttachments,
-                depthStencilAttachment: renderToTextureDepthStencilAttachment,
+                depthStencilAttachment: createGBufferDepthStencilAttachment,
             },
             backFaceCullingPipeline,
-            backFaceCullingBindGroup,
             frontFaceCullingPipeline,
-            frontFaceCullingBindGroup,
         };
 
         // Task 4.3: create a compute pipeline to compute the illumination in our scene in a deferred way
@@ -434,10 +433,5 @@ export class Workshop extends Sample {
             positionsBindGroup,
             normalsBindGroup,
         }
-    }
-
-    stop() {
-        super.stop();
-        this.camera.dispose();
     }
 }
