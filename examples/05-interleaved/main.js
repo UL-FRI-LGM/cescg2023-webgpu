@@ -4,9 +4,27 @@ const canvas = document.querySelector('canvas');
 const context = canvas.getContext('webgpu');
 const preferredFormat = navigator.gpu.getPreferredCanvasFormat();
 context.configure({
-    device: device,
+    device,
     format: preferredFormat,
 });
+
+// We can use a single buffer and interleave the attributes. This enables more
+// efficient cache usage. Note the updated offsets and stride.
+const vertexBufferLayout = {
+    attributes: [
+        {
+            shaderLocation: 0,
+            offset: 0,
+            format: 'float32x2',
+        },
+        {
+            shaderLocation: 1,
+            offset: 8,
+            format: 'float32x4',
+        }
+    ],
+    arrayStride: 24,
+};
 
 const code = await fetch('shader.wgsl').then(response => response.text());
 const module = device.createShaderModule({ code });
@@ -14,36 +32,12 @@ const pipeline = device.createRenderPipeline({
     vertex: {
         module,
         entryPoint: 'vertex',
-        buffers: [
-            // We can use a single buffer and interleave the attributes.
-            // This enables more efficient cache usage.
-            // Note the updated offsets and stride.
-            // For easier data setup, we use floats for both attributes.
-            {
-                attributes: [
-                    {
-                        shaderLocation: 0,
-                        offset: 0,
-                        format: 'float32x2',
-                    },
-                    {
-                        shaderLocation: 1,
-                        offset: 8,
-                        format: 'float32x4',
-                    }
-                ],
-                arrayStride: 24,
-            },
-        ],
+        buffers: [ vertexBufferLayout ],
     },
     fragment: {
         module,
         entryPoint: 'fragment',
-        targets: [
-            {
-                format: preferredFormat
-            }
-        ],
+        targets: [{ format: preferredFormat }],
     },
     layout: 'auto',
 });
@@ -57,19 +51,18 @@ const vertices = new Float32Array([
 
 const vertexBuffer = device.createBuffer({
     size: vertices.byteLength,
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    usage: GPUBufferUsage.VERTEX,
     mappedAtCreation: true,
 });
 
 new Float32Array(vertexBuffer.getMappedRange()).set(vertices);
 vertexBuffer.unmap();
 
-const canvasView = context.getCurrentTexture().createView();
 const encoder = device.createCommandEncoder();
 const renderPass = encoder.beginRenderPass({
     colorAttachments: [
         {
-            view: canvasView,
+            view: context.getCurrentTexture().createView(),
             clearValue: [1, 1, 1, 1],
             loadOp: 'clear',
             storeOp: 'store',

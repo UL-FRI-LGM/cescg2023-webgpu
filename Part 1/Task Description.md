@@ -190,11 +190,7 @@ const pipeline = device.createRenderPipeline({
     fragment: {
         module,
         entryPoint: 'fragment',
-        targets: [
-            {
-                format: preferredFormat
-            }
-        ],
+        targets: [{ format: preferredFormat }],
     },
     layout: 'auto',
 });

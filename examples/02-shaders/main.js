@@ -5,7 +5,7 @@ const canvas = document.querySelector('canvas');
 const context = canvas.getContext('webgpu');
 const preferredFormat = navigator.gpu.getPreferredCanvasFormat();
 context.configure({
-    device: device,
+    device,
     format: preferredFormat,
 });
 
@@ -27,11 +27,7 @@ const pipeline = device.createRenderPipeline({
     fragment: {
         module,
         entryPoint: 'fragment',
-        targets: [
-            {
-                format: preferredFormat
-            }
-        ],
+        targets: [{ format: preferredFormat }],
     },
     // In these examples, the layout is generated from the shaders, which is
     // usually a bad idea, except for one-shot pipelines where the layout
@@ -40,12 +36,11 @@ const pipeline = device.createRenderPipeline({
 });
 
 // Prepare the render pass.
-const canvasView = context.getCurrentTexture().createView();
 const encoder = device.createCommandEncoder();
 const renderPass = encoder.beginRenderPass({
     colorAttachments: [
         {
-            view: canvasView,
+            view: context.getCurrentTexture().createView(),
             clearValue: [1, 1, 1, 1],
             loadOp: 'clear',
             storeOp: 'store',

@@ -17,7 +17,7 @@ struct FragmentOutput {
 }
 
 struct Uniforms {
-    offset : vec2f,
+    translation : vec2f,
 }
 
 // The uniforms are organized into groups. The groups often correspond to
@@ -31,15 +31,15 @@ struct Uniforms {
 
 @vertex
 fn vertex(input : VertexInput) -> VertexOutput {
-    return VertexOutput(
-        vec4f(input.position + uniforms.offset, 0, 1),
-        input.color,
-    );
+    var output : VertexOutput;
+    output.position = vec4f(input.position + uniforms.translation, 0, 1);
+    output.color = input.color;
+    return output;
 }
 
 @fragment
 fn fragment(input : FragmentInput) -> FragmentOutput {
-    return FragmentOutput(
-        pow(input.color, vec4f(1 / 2.2)),
-    );
+    var output : FragmentOutput;
+    output.color = pow(input.color, vec4f(1 / 2.2));
+    return output;
 }

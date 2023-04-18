@@ -4,9 +4,39 @@ const canvas = document.querySelector('canvas');
 const context = canvas.getContext('webgpu');
 const preferredFormat = navigator.gpu.getPreferredCanvasFormat();
 context.configure({
-    device: device,
+    device,
     format: preferredFormat,
 });
+
+// The first buffer holds the data for the attribute at location 0 and the data
+// starts at offset 0 from the start of the buffer. The attribute is a 2D vector
+// of floats, and each consecutive value is 8 bytes ahead of the last one.
+const positionsBufferLayout = {
+    attributes: [
+        {
+            shaderLocation: 0,
+            offset: 0,
+            format: 'float32x2',
+        },
+    ],
+    arrayStride: 8,
+};
+
+// The second buffer holds the data for the attribute at location 1 and the data
+// starts at offset 0 from the start of the buffer. The attribute is a 4D vector
+// of 8-bit unsigned integers, which are normalized to floats in the range
+// [0.0, 1.0] in the shader, and each consecutive value is 4 bytes ahead of the
+// last one.
+const colorsBufferLayout = {
+    attributes: [
+        {
+            shaderLocation: 1,
+            offset: 0,
+            format: 'float32x4',
+        },
+    ],
+    arrayStride: 16,
+};
 
 const code = await fetch('shader.wgsl').then(response => response.text());
 const module = device.createShaderModule({ code });
@@ -15,46 +45,12 @@ const pipeline = device.createRenderPipeline({
         module,
         entryPoint: 'vertex',
         // We add two buffers to the vertex stage of the pipeline.
-        buffers: [
-            // The first buffer holds the data for the attribute at location 0
-            // and the data starts at offset 0 from the start of the buffer.
-            // The attribute is a 2D vector of floats, and each consecutive
-            // value is 8 bytes ahead of the last one.
-            {
-                attributes: [
-                    {
-                        shaderLocation: 0,
-                        offset: 0,
-                        format: 'float32x2',
-                    },
-                ],
-                arrayStride: 8,
-            },
-            // The second buffer holds the data for the attribute at location 1
-            // and the data starts at offset 0 from the start of the buffer.
-            // The attribute is a 4D vector of 8-bit unsigned integers, which
-            // are normalized to floats in the range [0.0, 1.0] in the shader,
-            // and each consecutive value is 4 bytes ahead of the last one.
-            {
-                attributes: [
-                    {
-                        shaderLocation: 1,
-                        offset: 0,
-                        format: 'unorm8x4',
-                    },
-                ],
-                arrayStride: 4,
-            }
-        ],
+        buffers: [ positionsBufferLayout, colorsBufferLayout ]
     },
     fragment: {
         module,
         entryPoint: 'fragment',
-        targets: [
-            {
-                format: preferredFormat
-            }
-        ],
+        targets: [{ format: preferredFormat }],
     },
     layout: 'auto',
 });
@@ -73,7 +69,7 @@ const positions = new Float32Array([
 // data can be copied into it.
 const positionsBuffer = device.createBuffer({
     size: positions.byteLength,
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    usage: GPUBufferUsage.VERTEX,
     mappedAtCreation: true,
 });
 
@@ -85,27 +81,26 @@ new Float32Array(positionsBuffer.getMappedRange()).set(positions);
 positionsBuffer.unmap();
 
 // We repeat the same procedure for the color buffer.
-const colors = new Uint8Array([
-    255, 0, 0, 255,
-    0, 255, 0, 255,
-    0, 0, 255, 255,
+const colors = new Float32Array([
+    1, 0, 0, 1,
+    0, 1, 0, 1,
+    0, 0, 1, 1,
 ]);
 
 const colorsBuffer = device.createBuffer({
     size: colors.byteLength,
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    usage: GPUBufferUsage.VERTEX,
     mappedAtCreation: true,
 });
 
-new Uint8Array(colorsBuffer.getMappedRange()).set(colors);
+new Float32Array(colorsBuffer.getMappedRange()).set(colors);
 colorsBuffer.unmap();
 
-const canvasView = context.getCurrentTexture().createView();
 const encoder = device.createCommandEncoder();
 const renderPass = encoder.beginRenderPass({
     colorAttachments: [
         {
-            view: canvasView,
+            view: context.getCurrentTexture().createView(),
             clearValue: [1, 1, 1, 1],
             loadOp: 'clear',
             storeOp: 'store',

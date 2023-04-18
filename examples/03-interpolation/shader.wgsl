@@ -1,6 +1,3 @@
-// In this example we are structuring the vertex and fragment shader
-// inputs and outputs so that the code is cleaner and more readable.
-
 struct VertexInput {
     @builtin(vertex_index) vertexIndex : u32,
 }
@@ -36,15 +33,15 @@ const colors = array<vec4f, 3>(
 
 @vertex
 fn vertex(input : VertexInput) -> VertexOutput {
-    return VertexOutput(
-        vec4f(positions[input.vertexIndex], 0, 1),
-        colors[input.vertexIndex],
-    );
+    var output : VertexOutput;
+    output.position = vec4f(positions[input.vertexIndex], 0, 1);
+    output.color = colors[input.vertexIndex];
+    return output;
 }
 
 @fragment
 fn fragment(input : FragmentInput) -> FragmentOutput {
-    return FragmentOutput(
-        pow(input.color, vec4f(1 / 2.2)),
-    );
+    var output : FragmentOutput;
+    output.color = pow(input.color, vec4f(1 / 2.2));
+    return output;
 }

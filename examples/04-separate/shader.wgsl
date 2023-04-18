@@ -21,15 +21,15 @@ struct FragmentOutput {
 
 @vertex
 fn vertex(input : VertexInput) -> VertexOutput {
-    return VertexOutput(
-        vec4f(input.position, 0, 1),
-        input.color,
-    );
+    var output : VertexOutput;
+    output.position = vec4f(input.position, 0, 1);
+    output.color = input.color;
+    return output;
 }
 
 @fragment
 fn fragment(input : FragmentInput) -> FragmentOutput {
-    return FragmentOutput(
-        pow(input.color, vec4f(1 / 2.2)),
-    );
+    var output : FragmentOutput;
+    output.color = pow(input.color, vec4f(1 / 2.2));
+    return output;
 }

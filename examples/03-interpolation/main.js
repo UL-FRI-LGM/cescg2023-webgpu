@@ -4,7 +4,7 @@ const canvas = document.querySelector('canvas');
 const context = canvas.getContext('webgpu');
 const preferredFormat = navigator.gpu.getPreferredCanvasFormat();
 context.configure({
-    device: device,
+    device,
     format: preferredFormat,
 });
 
@@ -18,21 +18,16 @@ const pipeline = device.createRenderPipeline({
     fragment: {
         module,
         entryPoint: 'fragment',
-        targets: [
-            {
-                format: preferredFormat
-            }
-        ],
+        targets: [{ format: preferredFormat }],
     },
     layout: 'auto',
 });
 
-const canvasView = context.getCurrentTexture().createView();
 const encoder = device.createCommandEncoder();
 const renderPass = encoder.beginRenderPass({
     colorAttachments: [
         {
-            view: canvasView,
+            view: context.getCurrentTexture().createView(),
             clearValue: [1, 1, 1, 1],
             loadOp: 'clear',
             storeOp: 'store',

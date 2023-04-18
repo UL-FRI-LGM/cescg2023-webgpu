@@ -15,7 +15,7 @@ const context = canvas.getContext('webgpu');
 // mobile devices usually prefer rgba8unorm.
 const preferredFormat = navigator.gpu.getPreferredCanvasFormat();
 context.configure({
-    device: device,
+    device,
     format: preferredFormat,
 });
 
@@ -25,20 +25,17 @@ console.log(await adapter.requestAdapterInfo());
 console.log([...adapter.features]);
 console.log(adapter.limits);
 
-// This is the most trivial example for clearing the canvas.
-// First, we request the current texture view to render into.
-// This is different every frame because multiple buffering may be used.
-const canvasView = context.getCurrentTexture().createView();
-
-// Then we create a command encoder for encoding the render pass.
+// To render anything, we must create a command encoder for encoding the render
+// pass.
 const encoder = device.createCommandEncoder();
 
-// In this example, we are only specifying a single color attachment,
-// which we set to be cleared with a specific color.
+// In this example, we are only specifying a single color attachment, which we
+// set to be cleared with a specific color. The texture that is used as an
+// attachment may be different every frame because of multiple buffering.
 const renderPass = encoder.beginRenderPass({
     colorAttachments: [
         {
-            view: canvasView,
+            view: context.getCurrentTexture().createView(),
             clearValue: [1, 0.6, 0.2, 1],
             loadOp: 'clear',
             storeOp: 'store',
