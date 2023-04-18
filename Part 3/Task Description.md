@@ -1,5 +1,8 @@
 # PART 3: Lighting
 
+In the third part of our workshop, we'll add some light sources to our scene.
+We'll learn about storage buffers and run-time sized arrays in WGSL.
+
 ## Task 3.1: Add a simple illumination model
 To start our illumination adventures, we'll use a static light source that we hard code into our shader and the Lambertian reflectance model which models diffuse surfaces.
 
@@ -240,5 +243,3 @@ fn compute_lighting(position: vec3f, normal: vec3f, albedo: vec3f, light_index: 
 ```
 
 TODO: changes to JS file!
-
-## Task 3.7 (bonus): Control the model's material via the UI
