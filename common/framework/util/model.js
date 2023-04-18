@@ -49,13 +49,6 @@ export class Model {
         return Mesh.indexType();
     }
 
-    createBuffers(device) {
-        return {
-            vertexBuffer: this.createVertexBuffer(device),
-            indexBuffer: this.createIndexBuffer(device),
-        }
-    }
-
     createVertexBuffer(device) {
         const vertexBuffer = device.createBuffer({
             size: this.vertexBufferSize,

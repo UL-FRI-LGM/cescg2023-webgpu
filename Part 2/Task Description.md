@@ -1,111 +1,107 @@
 # PART 2: 3D & Interactivity
 
 In the second part, we'll leave the simple triangle behind us and step into 3D rendering.
-We'll extend our knowledge from Part 1 to pass user input to shaders.
-Finally, we'll learn about depth testing and culling.
+We'll extend our knowledge from Part 1 to load and render a 3D model, and to pass user input to shaders.
+Finally, we'll learn about depth testing and culling modes.
 
 For the remainder of the workshop, we'll use a small framework to structure our code.
-We took the liberty to refactor our code from Part 1 to use this framework.
+We took the liberty to refactor our code from Part 1 to make the transition as smooth as possible.
 
 ## Task 2.0: Get to know the Framework
 
-We refactored the code from Part 1 to use our little framework.
+Our little framework provides a `Sample` class, which takes care of setting up WebGPU and requesting animation frames.
+It has the following two lifecycle functions that are called by its static `run` method:
+* `async init() {}`: this is called at initialization time and the place where we'll load our shaders, and set up textures, buffers and pipelines.
+* `render(deltaTime = 0.0) {}`: this is called once per frame. Here, we'll update uniform buffers, and encode render and compute passes.
+  
+To react to keyboard inputs, the `Sample` class provides the `key(type, keys)` convenience function.
 
-TODO: participants will probably copy this from somewhere in the project structure
+The `Sample` class also stores the following objects to provide easy access to the GPU and canvas:
+* `adapter`: the [GPUAdapter](https://www.w3.org/TR/webgpu/#gpuadapter)
+* `device`: the [GPUDevice](https://www.w3.org/TR/webgpu/#gpudevice)
+* `canvas`: the [HTMLCanvasElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement)
+* `context`: the [GPUCanvasContext](https://www.w3.org/TR/webgpu/#canvas-context)
+* `gpu`: the [GPU](https://www.w3.org/TR/webgpu/#gpu-interface)
+* `gui`: a [dat.GUI object](https://github.com/dataarts/dat.gui/blob/master/API.md) to add and control GUI elements
 
-We use the `Sample` class as a base for all tasks to come.
-It provides some lifecycle functions that are called by
-It has the following important methods:
-```js
-class Sample {
-    /**
-     * Called at 
-     */
-    async init();
-    render();
-    mouse();
-    key();
-    stop();
-}
-```
-
-The `Sample` class stores all relevant objects to communicate both with the GPU and the `HtmlCanvas`:
-
-We use this `Sample` class as a base for our reference implementation of the tasks to come.
-We created the class `Workshop` which is a subclass of `Sample`:
+To make the transition a little easier, we've refactored the code from Part 1 into the structure of our framework.
+You can find the in the `workshop.js` file in the project's root folder.
+Here, we define a `Workshop` class that extends the `Sample` class:
 
 ```js
 // workshop.js
-import { Sample } from '/common/framework/sample.js';
+import { Sample } from './common/framework/sample.js';
 
 class Workshop extends Sample {
+    async init() {...}
+    render() {...}
+    async #initResources() {...}
+    async #initPipelines() {...}
 }
 ```
 
-In our `main.js`, we create an instance of our `Workshop` class and call its lifecycle methods roughly like this:
+It all starts in the asynchronous `init` function:
 ```js
-// main.js
-const canvas = document.getElementById('webGpuCanvas');
-const gpu = navigator.gpu;
-const adapter = gpu && await gpu.requestAdapter();
-const device = adapter && await adapter.requestDevice();
-const context = device && canvas.getContext('webgpu');
-const workshop = new Workshop(gpu, adapter, device, context, canvas);
-
-await workshop.init();
-
-function render() {
-    workshop.render();
-    requestAnimationFrame(render);
+async init() {
+    // ... GUI elements, etc. 
+    await this.#initResources();
+    await this.#initPipelines();
 }
-render();
 ```
-
-Initially, we'll just render our textured triangle again.
-It all starts in the asynchronous `init` function that is called from `main.js`:
-```js
-    async init() {
-        await this.#initResources();
-        await this.#initPipelines();
-    }
-```
-All resources, like buffers and textures, are created in the private `#initResources` method of our class.
+We've moved the creation of all resources, like buffers and textures, to the private `#initResources` method of our `Workshop` class.
 The code is the same as in Part 1, but instead of storing buffers and textures globally, we store them in the `Workshop` instance:
 ```js
-    async #initResources() {
-        this.vertexBuffer = this.device.createBuffer({...});
-        this.indexBuffer = this.device.createBuffer({...});
-        this.sampler = this.device.createSampler({...});
-        this.texture = this.device.createTexture({...});
-        this.uniformBuffer = this.device.createBuffer({...});
-    }
+async #initResources() {
+    this.vertexBuffer = this.device.createBuffer({...});
+    this.indexBuffer = this.device.createBuffer({...});
+    this.sampler = this.device.createSampler({...});
+    this.texture = this.device.createTexture({...});
+    this.uniformBuffer = this.device.createBuffer({...});
+}
 ```
 
 Similarly, we store all information that's relevant for our render pipeline, like the pipeline, its bind group and color attachment, in the `Workshop` instance.
-We create these objects in the private `#initPipelines` method of our class:
+We create these objects in the private `#initPipelines` method of our `Workshop` class:
 ```js
-    async #initPipelines() {
-        this.pipeline = this.device.createRenderPipeline({...});
-        this.bindGroup = this.device.createBindGroup({...});
-        this.colorAttachment = {...};
-    }
+async #initPipelines() {
+    this.pipeline = this.device.createRenderPipeline({...});
+    this.bindGroup = this.device.createBindGroup({...});
+    this.colorAttachment = {...};
+}
 ```
 
-The actual rendering is done in the `render` method of our `Workshop` class.
-Again, this method is called from `main.js` which also requests an animation frame for us, so we can focus on encoding and submitting GPU commands:
+The actual rendering is done in the `render` method of our `Workshop` class:
 ```js
-    render() {
-        const commandEncoder = this.device.createCommandEncoder({...});
-        this.colorAttachment.view = this.context.getCurrentTexture().createView();
-        const renderPass = commandEncoder.beginRenderPass({...});
-        renderPass.setPipeline(this.pipeline);
-        renderPass.setBindGroup(0, this.bindGroup);
-        renderPass.setVertexBuffer(0, this.vertexBuffer);
-        renderPass.setIndexBuffer(this.indexBuffer, 'uint16');
-        renderPass.drawIndexed(3);
-        renderPass.end();
-        this.device.queue.submit([commandEncoder.finish()]);
-    }
+render() {
+    const commandEncoder = this.device.createCommandEncoder({...});
+    this.colorAttachment.view = this.context.getCurrentTexture().createView();
+    const renderPass = commandEncoder.beginRenderPass({...});
+    renderPass.setPipeline(this.pipeline);
+    renderPass.setBindGroup(0, this.bindGroup);
+    renderPass.setVertexBuffer(0, this.vertexBuffer);
+    renderPass.setIndexBuffer(this.indexBuffer, 'uint16');
+    renderPass.drawIndexed(3);
+    renderPass.end();
+    this.device.queue.submit([commandEncoder.finish()]);
+}
+```
+
+We kick off our render loop by running the `Workshop` class from our HTML file:
+```js
+<script type="module">
+    import { Workshop } from './workshop.js';
+
+    const viewport = document.getElementById('viewport');
+    const canvas = document.getElementById('webGpuCanvas');
+    canvas.width = viewport.clientWidth;
+    canvas.height = viewport.clientHeight;
+    const guiDiv = document.getElementById('gui');
+
+    Workshop.run(canvas, guiDiv).catch(error => {
+        console.error(error);
+        alert(`Unrecoverable error. Please check the console for details.`);
+    });
+</script>
 ```
 
 ## Task 2.1: Add a Camera
@@ -114,7 +110,7 @@ The first thing we have to do, is adding a camera to both our JavaScript file an
 
 We'll start with the shader:
 * Add a `Camera` struct consisting of two `mat4x4<f32>`, the camera's `view` and `projection` matrices.
-* Add an instance of the `Camera` struct to the `Uniforms` struct.
+* Add a member of type `Camera` to the `Uniforms` struct. **Note that with two 4x4 matrices and a single 2D vector, we enter the realm of [alignment and structure member layout rules](https://www.w3.org/TR/WGSL/#alignment-and-size) because of which our `vec2` has an implicit size of a `vec4`.**
 * In the vertex stage of the shader, use the camera's matrices to transform the vertex position to clip space, e.g., like so:
 ```wgsl
 fn vertex(input: VertexInput) -> VertexOutput {
@@ -125,27 +121,27 @@ fn vertex(input: VertexInput) -> VertexOutput {
 }
 ```
 
-The shader now expects two matrices to be in the `Uniforms` struct, so we need to adjust the JavaScript file as well:
-* In the `#initResources` methods, adjust the uniform buffer's size to hold two more matrices. Each `mat4x4<f32>` consists of 16 floats, so we have to add `2 * 16 * Float32Array.BYTES_PER_ELEMENT` to the buffer's size. 
-* Import the `OrbitCamera` class from `/common/engine/util/orbit-camera.js` ...
+The shader now expects two matrices to be in the `Uniforms` struct, so we need to adjust the `Workshop` class as well:
+* In the `#initResources` methods, adjust the uniform buffer's size to hold two more matrices **and implicitly also an extra `vec2` worth of padding because of [alignment and structure member layout rules](https://www.w3.org/TR/WGSL/#alignment-and-size)**. Each `mat4x4<f32>` consists of 16 floats and a `vec2<f32>` has 8 bytes, so our buffer should have a size of `8 + 8 + 2 * 16 * Float32Array.BYTES_PER_ELEMENT` bytes.
+* Import the `OrbitCamera` class from `./common/engine/util/orbit-camera.js` ...
 * ... and create a camera instance in the `init` method of our `Workshop` class:
 ```js
-    async init() {
-        // An OrbitCamera takes an HTML element as input, which it uses to register user input
-        this.camera = new OrbitCamera(this.canvas);
-        ...
-    }
+async init() {
+    // An OrbitCamera takes an HTML element as input, which it uses to register user input
+    this.camera = new OrbitCamera(this.canvas);
+    ...
+}
 ```
 * Within our render function, call the camera's `update` method. The `OrbitCamera` class processes user inputs through events triggered on the canvas. The `update` method commits these inputs to the camera's `view` matrix.
 * Finally, we need to upload the camera's matrices to the shader by writing them to our uniform buffer, e.g., like so:
 ```js
-    const uniformArray = new Float32Array([
-        ...this.camera.view,
-        ...this.camera.projection,
-        ...this.offset,
-        0, 0 // padding
-    ]);
-    this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformArray);
+const uniformArray = new Float32Array([
+    ...this.camera.view,
+    ...this.camera.projection,
+    ...this.offset,
+    0, 0 // padding
+]);
+this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformArray);
 ```
 
 Now we have a user controlled camera that lets us view our textured triangle in 3D!
@@ -155,9 +151,9 @@ To control the camera, we can:
 
 ## Task 2.2: Adjust the Vertex Layout
 With a camera we can view our triangle in 3D, but a triangle isn't all that interesting.
-In this task, we'll prepare our shader and JavaScript file to render 3D models instead.
+In this task, we'll prepare our shader and `Workshop` class to render 3D models instead.
 
-Again, we'll start with the shader:
+We'll start with the shader:
 * Adjust the `VertexInput` struct to hold a three-dimensional position and a normal:
 ```wgsl
 struct VertexInput {
@@ -166,7 +162,7 @@ struct VertexInput {
     @location(2) texcoord: vec2f,   // <- texcoords are now in location 2
 }
 ```
-* Adjust the `VertexOutput` and `FragmentInput` structs to pass the normal to hold a normal as well:
+* Add the normal to our `VertexOutput` and `FragmentInput` structs:
 ```wgsl
 struct VertexOutput {
     @builtin(position) position: vec4f,
@@ -197,9 +193,10 @@ fn vertex(input: VertexInput) -> VertexOutput {
 }
 ```
 
-Now that we've changed the shader, it no longer matches our setup in the JavaScript file, so we need to make some changes there as well:
-* Import `mat4` from `/lib/gl-matrix-module.js`.
-* In `#initResources`, add a third component to vertex positions 3D and add a 3D normal vector to each:
+Now that we've changed the shader, it no longer matches our setup in the `Workshop` class, so we need to make some changes there as well:
+* Remove the GUI and offset related code within init - we don't need it anymore.
+* Import `mat4` from `./lib/gl-matrix-module.js`.
+* In `#initResources`, add a third component to vertex positions 3D and add a 3D normal vector to each vertex:
 ```js
 const vertices = new Float32Array([
     // top vertex
@@ -219,33 +216,33 @@ const vertices = new Float32Array([
 * Also in `#initResources`, change the size of the uniform buffer to hold three `mat4x4<f32>`: `3 * 16 * Float32Array.BYTES_PER_ELEMENT`
 * In `#initPipelines`, adjust the vertex layout of our render pipeline:
 ```js
+// ...
+vertex: {
     // ...
-    vertex: {
-        // ...
-        buffers: [
-            {
-                attributes: [
-                    {   // position
-                        shaderLocation: 0,
-                        offset: 0,
-                        format: 'float32x3',
-                    },
-                    {   // normal
-                        shaderLocation: 1,
-                        offset: 12,
-                        format: 'float32x3',
-                    },
-                    {   // texcoords
-                        shaderLocation: 2,
-                        offset: 24,
-                        format: 'float32x2',
-                    }
-                ],
-                arrayStride: 32, // = 12 + 12 + 8
-            },
-        ],
-    },
-    // ...
+    buffers: [
+        {
+            attributes: [
+                {   // position
+                    shaderLocation: 0,
+                    offset: 0,
+                    format: 'float32x3',
+                },
+                {   // normal
+                    shaderLocation: 1,
+                    offset: 12,
+                    format: 'float32x3',
+                },
+                {   // texcoords
+                    shaderLocation: 2,
+                    offset: 24,
+                    format: 'float32x2',
+                }
+            ],
+            arrayStride: 32, // = 12 + 12 + 8
+        },
+    ],
+},
+// ...
 ```
 * Finally, instead of a 2D offset, pass a transformation matrix to our uniform buffer in `render`:
 ```js
@@ -257,20 +254,18 @@ const vertices = new Float32Array([
     ]);
 ```
 
+We don't see any optical changes in this task, but we've set the stage for 3D objects!
+
 ## Task 2.3: Load and Render a 3D Model
 Now that we have prepared everything to render 3D models, the time has finally come to do so:
-* Import the `bunny` model from `./common/models/bunny.json` as a JSON:
-```js
-import bunny from './common/models/bunny.json' assert { type: 'json' };
-```
-* Import the `Model` class from `./common/engine/util/model.js`. The `Model` class has some helper functions to get the numbers of vertices and indices, and to write them to mapped buffer ranges.
+* Import the `Model` class from `./common/engine/util/model.js`. The `Model` class has some helper functions to create vertex and index buffers and get meta data such as the number of vertex indices.
 * Import the `Vertex` helper class from `./common/engine/core/mesh.js`.
-* In `init`, create an instance of the `Model` class from the `bunny`:
+* In `init`, create an instance of the `Model` class from a 3D model we'll load using the ominous `assetLoader` lurking around our `init` function:
 ```js
-    async init() {
-        this.model = new Model(bunny);
-        // ...
-    }
+async init() {
+    this.model = new Model(await this.assetLoader.loadModel('models/bunny.json'));
+    // ...
+}
 ```
 * In `#initResources`, replace the triangle's vertex and index buffers with the model's:
 ```js
@@ -286,19 +281,19 @@ import bunny from './common/models/bunny.json' assert { type: 'json' };
         ...modelMatrix
     ]);
 ```
-* In `render`, make sure to use the correct index type (the `Model` class uses `'uint32'`!) and number of indices for drawing the model:
+* In `render`, make sure to use the correct index type (**the `Model` class uses `'uint32'`!**) and number of indices for drawing the model:
 ```js
 renderPass.setIndexBuffer(this.indexBuffer, this.model.indexType); // = 'uint32'
 renderPass.drawIndexed(this.model.numIndices);
 ```
-* Optionally, use the `vertexLayout` provided by the `Vertex` class when creating our render pipeline in `#initPipelines`:
+* Optionally, use the `vertexLayout` provided by the `Vertex` class (import from `./common/engine/core/mesh.js`) when creating our render pipeline in `#initPipelines`:
 ```js
+// ...
+vertex: {
     // ...
-    vertex: {
-        // ...
-        buffers: [Vertex.vertexLayout()],
-    },
-    // ...
+    buffers: [Vertex.vertexLayout()],
+},
+// ...
 ```
 
 ## Task 2.4: Add a Depth Buffer
@@ -306,7 +301,7 @@ While we now see a 3D model, something still isn't right here: it looks as if we
 The reason for this is that we haven't enabled depth testing.
 This leads to triangles being ordered incorrectly, when we draw multiple triangles at the same location.
 Luckily, the fix for this problem is relatively easy: we just need to create a depth buffer and enable depth testing for our render pipeline:
-* In `#initResources`, create a depth buffer. A depth buffer is just a texture with a format that allows depth testing:
+* In `#initResources`, create a depth buffer. A depth buffer is just a texture with a [format that allows depth testing](https://www.w3.org/TR/webgpu/#depth-formats) and the [RENDER_ATTACHMENT texture usage](https://www.w3.org/TR/webgpu/#dom-gputextureusage-render_attachment):
 ```js
     this.depthTexture = this.device.createTexture({
         size: [this.canvas.width, this.canvas.height],
@@ -314,33 +309,27 @@ Luckily, the fix for this problem is relatively easy: we just need to create a d
         usage: GPUTextureUsage.RENDER_ATTACHMENT,
     });
 ```
-* In `#initPipelines`, add a `GPUDepthStencilState` to our render pipleine:
+* In `#initPipelines`, add a [GPUDepthStencilState](https://www.w3.org/TR/webgpu/#dictdef-gpudepthstencilstate) to our render pipeline descriptor:
 ```js
-    this.pipeline = this.device.createRenderPipeline({     
-        // ...
-        depthStencil: {
-            depthWriteEnabled: true,
-            depthCompare: 'less',   // we want triangles that are closer to the camera to override triangles that are further away
-            format: 'depth24plus',
-        }
-    });
+this.pipeline = this.device.createRenderPipeline({     
+    // ...
+    depthStencil: {
+        depthWriteEnabled: true,
+        depthCompare: 'less',   // we want triangles that are closer to the camera to override triangles that are further away
+        format: 'depth24plus',
+    }
+});
 ```
 * Also in `#initPipelines`, prepare the depth-stencil attachment for subsequent `render` calls:
 ```js
-    this.depthStencilAttachment = {
-        view: this.depthTexture.createView(),
-        depthClearValue: 1.0,
-        depthLoadOp: 'clear',
-        depthStoreOp: 'discard',
-    };
+this.depthStencilAttachment = {
+    view: this.depthTexture.createView(),   // we'll use our depthTexture as depth-stencil attachment
+    depthClearValue: 1.0,                   // at the start of the render pass, the depth buffer is initilized to 1.0 in each pixel
+    depthLoadOp: 'clear',                   // at the start of the render pass, the depth buffer is cleared using `depthClearValue`
+    depthStoreOp: 'discard',                // at the end of the render pass, the depth buffer can be discarded, meaning that we do not care what happens to the values stored in the depth buffer after the pass
+};
 ```
-* In `render`, add the depth-stencil attachment to the render pass:
-```js
-     const renderPass = commandEncoder.beginRenderPass({
-        colorAttachments: [this.colorAttachment],
-        depthStencilAttachment: this.depthStencilAttachment,
-    });
-```
+* In `render`, add the depth-stencil attachment to the render pass via the `depthStencilAttachment` member of the [GPURenderPassDescriptor](https://www.w3.org/TR/webgpu/#dictdef-gpurenderpassdescriptor).
 
 ## Task 2.5: Set a Culling Mode
 With depth testing enabled, the bunny now gets rendered correctly.
@@ -349,15 +338,15 @@ Depending on your application, this might not be what you want.
 In this task we'll look into culling modes and how they can fix this issue.
 
 We'll create two separate pipelines which both use the same shader, and use keyboard inputs to switch between the two.
-The culling mode for a render pipeline is set at creation time using the `primitive` member of the pipeline descriptor object:
+The culling mode for a render pipeline is set at creation time using the `primitive` member of the [GPURenderPipelineDescriptor](https://www.w3.org/TR/webgpu/#dictdef-gpurenderpipelinedescriptor) object:
 ```js
-    device.createRenderPipeline({
+device.createRenderPipeline({
+    // ...
+    primitive: {
+        cullMode: 'back', // possible values: 'none' (default), 'back', 'front'
         // ...
-        primitive: {
-            cullMode: 'back', // possible values: 'none' (default), 'back', 'front'
-            // ...
-        }
-    });
+    }
+});
 ```
 The `primitive` member has the type [GPUPrimitiveState](https://www.w3.org/TR/webgpu/#dictdef-gpuprimitivestate) which has a bunch of other options to define the primitives, i.e., the triangles, lines, or points, the render pipeline will draw.
 For example, it defines the way a front facing triangle is defined by the pipeline
@@ -365,63 +354,78 @@ In this workshop we'll stick to the defaults for everything except the culling m
 
 Up until now, we've let WebGPU determine the pipeline and bind group layouts automatically.
 This has the drawback that bind groups created from this automatically determined layout can only be used with this specific pipeline.
-However, with two pipelines that are so similar that they only differ in their culling mode, it makes sense to define these layouts explicitly so that we can use one bind group for both pipelines.
+With two pipelines that are so similar that they only differ in their culling mode, it makes sense to define these layouts explicitly so that we can use one bind group for both pipelines.
 Bind group layout creating is simple. We just have to look at the bindings defined in our shader and in what shader stages the individual bindings are used in and describe them in a bind group layout descriptor object:
 ```js
-        const bindGroupLayout = this.device.createBindGroupLayout({
-            entries: [
-                // @group(0) @binding(0) var<uniform> uniforms : Uniforms;
-                {
-                    binding: 0,
-                    // we only use this binding in the vertex stage
-                    visibility: GPUShaderStage.VERTEX,
-                    buffer: {},
-                },
-                // @group(0) @binding(1) var uTexture : texture_2d<f32>;
-                {
-                    binding: 1,
-                    // we only use this binding in the fragment stage
-                    visibility: GPUShaderStage.FRAGMENT,
-                    texture: {},
-                },
-                // @group(0) @binding(2) var uSampler : sampler;
-                {
-                    binding: 2,
-                    // we only use this binding in the fragment stage
-                    visibility: GPUShaderStage.FRAGMENT,
-                    sampler: {},
-                }
-            ]
-        });
+const bindGroupLayout = this.device.createBindGroupLayout({
+    entries: [
+        // @group(0) @binding(0) var<uniform> uniforms : Uniforms;
+        {
+            binding: 0,
+            // we only use this binding in the vertex stage
+            visibility: GPUShaderStage.VERTEX,
+            buffer: {},
+        },
+        // @group(0) @binding(1) var uTexture : texture_2d<f32>;
+        {
+            binding: 1,
+            // we only use this binding in the fragment stage
+            visibility: GPUShaderStage.FRAGMENT,
+            texture: {},
+        },
+        // @group(0) @binding(2) var uSampler : sampler;
+        {
+            binding: 2,
+            // we only use this binding in the fragment stage
+            visibility: GPUShaderStage.FRAGMENT,
+            sampler: {},
+        }
+    ]
+});
 ```
 
 To create a pipeline layout, we simply pass an array containing all bind group layouts required for the pipeline in the pipeline layout descriptor object when creating the layout:
 ```js
-    const pipelineLayout = this.device.createPipelineLayout({
-        bindGroupLayouts: [
-            bindGroupLayout, // @group 0
-        ]
-    });
+const pipelineLayout = this.device.createPipelineLayout({
+    bindGroupLayouts: [
+        bindGroupLayout, // @group 0
+    ]
+});
 ```
 
 For this task...
 * In `#initPipelines`, create a bind group layout matching the bindings in our shader.
-* In `#initPipelines`, create a bind group using the bind group layout created in the first step.
+* In `#initPipelines`, create a bind group using the bind group layout created in the first step:
+```js
+this.bindGroup = this.device.createBindGroup({
+    layout: bindGroupLayout, // <- use the explicitly created bind group layout instead of pipeline.getBindGroupLayout(0)
+    // ...
+});
+```
 * In `#initPipelines`, create a pipeline layout using the bind group layout created in the first step.
-* In `#initPipelines`, create a pipeline that culls back faces and store it in the `Workshop` instance.
+* In `#initPipelines`, create a pipeline that culls back faces and store it in the `Workshop` instance:
+```js
+this.backFaceCullingPipeline = this.device.createRenderPipeline({
+    layout: pipelineLayout, // <- no longer 'auto' but the pipeline layout explicitly defined by us
+    primitive: {
+        cullMode: 'back',
+    },
+    // ...
+});
+```
 * In `#initPipelines`, create a pipeline that culls front faces and store it in the `Workshop` instance.
 * In `#initPipelines`, store one pipeline as the default pipeline in the `Workshop` instance.
 * Switch between pipelines on keyboard inputs, e.g., using the `key` method of our `Workshop` class:
 ```js
-    key(type, keys) {
-        if (type === 'up' && (keys.includes('c') || keys.includes('C'))) {
-            this.cullBackFaces = !this.cullBackFaces;
-            if (this.cullBackFaces) {
-                this.pipeline = this.backFaceCullingPipeline;
-            } else {
-                this.pipeline = this.frontFaceCullingPipeline;
-            }
+key(type, keys) {
+    if (type === 'up' && (keys.includes('c') || keys.includes('C'))) {
+        this.cullBackFaces = !this.cullBackFaces;
+        if (this.cullBackFaces) {
+            this.pipeline = this.backFaceCullingPipeline;
+        } else {
+            this.pipeline = this.frontFaceCullingPipeline;
         }
     }
+}
 ```
 

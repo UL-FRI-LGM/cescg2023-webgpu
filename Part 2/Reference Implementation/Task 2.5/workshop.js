@@ -224,9 +224,4 @@ export class Workshop extends Sample {
             depthStoreOp: 'discard',
         };
     }
-
-    stop() {
-        super.stop();
-        this.camera.dispose();
-    }
 }

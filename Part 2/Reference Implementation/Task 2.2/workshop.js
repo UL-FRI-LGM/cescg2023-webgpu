@@ -171,9 +171,4 @@ export class Workshop extends Sample {
             storeOp: 'store'
         };
     }
-
-    stop() {
-        super.stop();
-        this.camera.dispose();
-    }
 }
