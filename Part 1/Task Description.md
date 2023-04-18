@@ -190,11 +190,7 @@ const pipeline = device.createRenderPipeline({
     fragment: {
         module,
         entryPoint: 'fragment',
-        targets: [
-            {
-                format: preferredFormat
-            }
-        ],
+        targets: [{ format: preferredFormat }],
     },
     layout: 'auto',
 });
@@ -517,41 +513,119 @@ renderPass.drawIndexed(3);
 
 ## Task 1.7: Translate the triangle with uniform variables
 
-TODO Uniform variables are organized into groups.
+We now want to translate the triangle with a given vector. To achieve that,
+we need to make the following changes:
 
-```js
-import { GUI } from '../../../lib/dat.gui.module.js';
-```
+1. Import the dat.gui library and add two sliders for the translation.
+1. Move the render code to a function and call it on every translation change.
+1. Create a uniform variable in the shader and assign it to a group and give it
+a binding number.
+1. Create a uniform buffer of sufficient size.
+1. Create a bind group and connect the uniform buffer to it.
+1. When rendering, update the uniform buffer and set the bind group.
+
+We want to set the translation vector through the GUI using the dat.gui library,
+so we will add a reference to the library script in the HTML and import it in
+`main.js`.
+
+* Add the dat.gui script to the HTML:
 
 ```html
 <script src="../../lib/dat.gui.min.js"></script>
 ```
 
-```wgsl
-struct Uniforms {
-    offset : vec2f,
+* Import the dat.gui library:
+
+```js
+import { GUI } from '../../../lib/dat.gui.module.js';
+```
+
+* Add two sliders to control the x and y components of the translation vector:
+
+```js
+const translation = {
+    x: 0,
+    y: 0,
+};
+
+const gui = new GUI();
+gui.add(translation, 'x', -1, 1).onChange(render);
+gui.add(translation, 'y', -1, 1).onChange(render);
+```
+
+We must re-render the scene on all changes of the translation. This is why we
+will put all rendering code in a function called `render`:
+
+```js
+function render() {
+    const encoder = device.createCommandEncoder();
+    ...
+    device.queue.submit([encoder.finish()]);
 }
 
+render();
+```
+
+Note that we are calling the render function immediately, so that the scene is
+rendered when the page loads, and we also attached the render function as a
+callback when the user interacts with the slider.
+
+Next, we will update the shader. The translation vector is going to be the same
+for all vertices, so we are going to use a *uniform variable*. We only need one
+*group* and one *binding* in the shader.
+
+* Create a struct `Uniforms`:
+
+```wgsl
+struct Uniforms {
+    translation : vec2f,
+}
+```
+
+* Add a uniform variable of type `Uniforms` to the shader:
+
+```wgsl
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 ```
 
-```wgsl
-vec4f(input.position + uniforms.offset, 0, 1)
-```
+Note that we are using group 0 and binding 0 for the uniforms. These numbers
+will be visible from the host code.
+
+* Update the vertex shader by adding the translation to the output position:
 
 ```wgsl
+vec4f(input.position + uniforms.translation, 0, 1)
+```
+
+Next, we need to create a uniform buffer from the host code. The buffer will
+hold two floats, so its size will be 8. Its usage will be `UNIFORM`, and because
+we will write to the buffer later, we do not need to map it and unmap it.
+However, we must flag it as a copy destination (`COPY_DST`).
+
+* Create the uniform buffer:
+
+```js
 const uniformBuffer = device.createBuffer({
     size: 8,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
 });
 ```
 
+We update the contents of the buffer in the `render` function, before encoding
+the render pass.
+
+* Update the contents of the uniform buffer:
+
 ```js
-const uniforms = {
-    offsetX: 0,
-    offsetY: 0,
-};
+const uniformArray = new Float32Array([translation.x, translation.y]);
+device.queue.writeBuffer(uniformBuffer, 0, uniformArray);
 ```
+
+To bind the newly created uniform buffer to the shader, we need a bind group.
+The bind group needs a layout, which we can pull from the pipeline. As with the
+pipeline layout, the bind group layout would ideally be created in advance.
+
+* Create the bind group for the uniforms:
 
 ```js
 const uniformBindGroup = device.createBindGroup({
@@ -565,16 +639,193 @@ const uniformBindGroup = device.createBindGroup({
 });
 ```
 
+Note the bind group 0 and binding number 0. These match with the shader code.
+
+Lastly, we connect the bind group to the shader in the render pass.
+
+* Set the bind group in the render pass:
+
 ```js
 renderPass.setBindGroup(0, uniformBindGroup);
 ```
 
-```js
-const gui = new GUI();
-gui.add(uniforms, 'offsetX', -1, 1).onChange(render);
-gui.add(uniforms, 'offsetY', -1, 1).onChange(render);
-```
-
 ## Task 1.8: Apply a texture to the triangle
 
-TODO
+Now we want to texture the triangle with an image that we fetch from the server.
+To achieve this, we are going to make the following changes:
+
+1. Replace the color attribute with texture coordinates.
+1. Add a texture and a sampler uniform, and sample the texture in the fragment
+shader.
+1. Create a texture and a sampler object and bind them to the shader.
+1. Fetch the image from the server, decode it, and copy it to the texture.
+
+To replace the colors with texture coordinates, we will change the vertex
+buffer and the shader:
+
+* Replace the color attribute with texture coordinates in the buffer:
+
+```js
+const vertices = new Float32Array([
+     0.0,  0.5,     0.5, 1.0,
+    -0.5, -0.5,     0.0, 0.0,
+     0.5, -0.5,     1.0, 0.0,
+]);
+```
+
+* Change the vertex buffer layout accordingly:
+
+```js
+const vertexBufferLayout = {
+    attributes: [
+        {
+            shaderLocation: 0,
+            offset: 0,
+            format: 'float32x2',
+        },
+        {
+            shaderLocation: 1,
+            offset: 8,
+            format: 'float32x2',
+        }
+    ],
+    arrayStride: 16,
+};
+```
+
+* Replace the color attribute with texture coordinates in the shader:
+
+```wgsl
+struct VertexInput {
+    @location(0) position : vec2f,
+    @location(1) texcoord : vec2f,
+}
+
+struct VertexOutput {
+    @builtin(position) position : vec4f,
+    @location(0) texcoord : vec2f,
+}
+
+struct FragmentInput {
+    @location(0) texcoord : vec2f,
+}
+
+struct FragmentOutput {
+    @location(0) color : vec4f,
+}
+```
+
+Next, we will add a texture and a sampler as uniforms to the shader. They cannot
+be put in the `Uniforms` struct, because they are not backed by a buffer, so we
+need to create separate bindings for them. We will use binding numbers 1 and 2
+for them and reuse group 0. We will be using a 2D texture and sample colors with
+floating point components, so the correct texture type is `texture_2d<f32>`.
+
+* Add a texture and a sampler as uniforms:
+
+```wgsl
+@group(0) @binding(1) var uTexture : texture_2d<f32>;
+@group(0) @binding(2) var uSampler : sampler;
+```
+
+* Sample the texture at the interpolated texture coordinates:
+
+```wgsl
+@vertex
+fn vertex(input : VertexInput) -> VertexOutput {
+    return VertexOutput(
+        vec4f(input.position + uniforms.translation, 0, 1),
+        input.texcoord,
+    );
+}
+
+@fragment
+fn fragment(input : FragmentInput) -> FragmentOutput {
+    return FragmentOutput(
+        textureSample(uTexture, uSampler, input.texcoord),
+    );
+}
+```
+
+Now we turn our attention to the host code, where we first fetch the image from
+the server and decode it. Note that this is an async process. We will use the
+image `brick.png` and put it into the same directory as the `index.html` file.
+
+* Fetch the image from the server and decode it to `ImageBitmap`:
+
+```js
+const response = await fetch('brick.png');
+const blob = await response.blob();
+const image = await createImageBitmap(blob);
+```
+
+Next, we create the texture. We must specify its size, format, and usage. The
+format can be `rgba8unorm`, which means that we have 4 components that are 8-bit
+unsigned integers, which are normalized to floats on the unit interval when
+sampled.
+
+Since we will copy an external image into the texture, the usage flags must
+include the `COPY_DST` flag. Additionally, since the browser may need to perform
+color space conversions, we must add the `RENDER_ATTACHMENT` flag as per the
+WebGPU specification. We are also going to use the texture in a shader as a
+texture binding, so we add the `TEXTURE_BINDING` flag.
+
+* Create a texture:
+
+```js
+const texture = device.createTexture({
+    size: [image.width, image.height],
+    usage:
+        GPUTextureUsage.TEXTURE_BINDING |
+        GPUTextureUsage.COPY_DST |
+        GPUTextureUsage.RENDER_ATTACHMENT,
+    format: 'rgba8unorm',
+});
+```
+
+Now that we have both the image and the texture prepared, we can issue a command
+to copy the image to the texture.
+
+* Copy the image to the texture:
+
+```js
+device.queue.copyExternalImageToTexture(
+    { source: image },
+    { texture: texture },
+    [image.width, image.height]
+);
+```
+
+We also need a sampler, which we are going to configure to use nearest neighbor
+interpolation, and leave the default clamping behavior for texture coordinates.
+
+* Create a sampler:
+
+```js
+const sampler = device.createSampler({
+    magFilter: 'nearest',
+    minFilter: 'nearest',
+});
+```
+
+Lastly, we connect the texture and sampler to the shader by adding them to the
+bind group. Note that the binding numbers match the ones in the shader.
+
+* Add the texture and sampler to the bind group:
+
+```js
+const uniformBindGroup = device.createBindGroup({
+    ...
+    entries: [
+        ...
+        {
+            binding: 1,
+            resource: texture.createView(),
+        },
+        {
+            binding: 2,
+            resource: sampler,
+        },
+    ],
+});
+```
