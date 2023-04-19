@@ -44,9 +44,10 @@ const adapter = await navigator.gpu.requestAdapter();
 const device = await adapter.requestDevice();
 const canvas = document.querySelector('canvas');
 const context = canvas.getContext('webgpu');
+const preferredFormat = navigator.gpu.getPreferredCanvasFormat();
 context.configure({
     device,
-    format: navigator.gpu.getPreferredCanvasFormat(),
+    format: preferredFormat,
 });
 ```
 
@@ -145,16 +146,16 @@ and returning the correct values.
 ```wgsl
 @vertex
 fn vertex(input : VertexInput) -> VertexOutput {
-    return VertexOutput(
-        vec4f(positions[input.vertexIndex], 0, 1),
-    );
+    var output : VertexOutput;
+    output.position = vec4f(positions[input.vertexIndex], 0, 1);
+    return output;
 }
 
 @fragment
 fn fragment(input : FragmentInput) -> FragmentOutput {
-    return FragmentOutput(
-        vec4f(1.0, 0.6, 0.2, 1.0),
-    );
+    var output : FragmentOutput;
+    output.color = vec4f(1.0, 0.6, 0.2, 1.0);
+    return output;
 }
 ```
 
@@ -244,17 +245,17 @@ struct FragmentInput {
 ```wgsl
 @vertex
 fn vertex(input : VertexInput) -> VertexOutput {
-    return VertexOutput(
-        vec4f(positions[input.vertexIndex], 0, 1),
-        colors[input.vertexIndex],
-    );
+    var output : VertexOutput;
+    output.position = vec4f(positions[input.vertexIndex], 0, 1);
+    output.color = colors[input.vertexIndex];
+    return output;
 }
 
 @fragment
 fn fragment(input : FragmentInput) -> FragmentOutput {
-    return FragmentOutput(
-        pow(input.color, vec4f(1 / 2.2)),
-    );
+    var output : FragmentOutput;
+    output.color = pow(input.color, vec4f(1 / 2.2));
+    return output
 }
 ```
 
@@ -733,17 +734,17 @@ floating point components, so the correct texture type is `texture_2d<f32>`.
 ```wgsl
 @vertex
 fn vertex(input : VertexInput) -> VertexOutput {
-    return VertexOutput(
-        vec4f(input.position + uniforms.translation, 0, 1),
-        input.texcoord,
-    );
+    var output : VertexOutput;
+    output.position = vec4f(input.position + uniforms.translation, 0, 1);
+    output.texcoord = input.texcoord,
+    return output;
 }
 
 @fragment
 fn fragment(input : FragmentInput) -> FragmentOutput {
-    return FragmentOutput(
-        textureSample(uTexture, uSampler, input.texcoord),
-    );
+    var output : FragmentOutput;
+    output.color = textureSample(uTexture, uSampler, input.texcoord);
+    return output;
 }
 ```
 
@@ -754,8 +755,7 @@ image `brick.png` and put it into the same directory as the `index.html` file.
 * Fetch the image from the server and decode it to `ImageBitmap`:
 
 ```js
-const response = await fetch('brick.png');
-const blob = await response.blob();
+const blob = await fetch('brick.png').then(response => response.blob());
 const image = await createImageBitmap(blob);
 ```
 
@@ -791,7 +791,7 @@ to copy the image to the texture.
 ```js
 device.queue.copyExternalImageToTexture(
     { source: image },
-    { texture: texture },
+    { texture },
     [image.width, image.height]
 );
 ```
