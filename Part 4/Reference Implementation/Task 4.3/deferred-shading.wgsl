@@ -51,35 +51,8 @@ const MATERIAL: Material = Material(
 // output texture
 @group(0) @binding(5) var output : texture_storage_2d<rgba8unorm, write>;
 
-// Task 3.1: compute diffuse lighting (Lambertian reflection)
-fn compute_diffuse_lighting(normal: vec3f, light_direction: vec3f) -> f32 {
-    // Task 3.5: replace constant DIFFUSE_REFLECTIVITY with Material.diffuse
-    return max(0.0, dot(normal, light_direction)) * MATERIAL.diffuse;
-}
-
-// Task 3.5: compute specular lighting
-fn compute_specular_lighting(position: vec3f, normal: vec3f, light_direction: vec3f) -> f32 {
-    let view_direction = normalize(uniforms.camera.position - position);
-    let reflection_vector = reflect(-light_direction, normal);
-    return pow(max(0.0, dot(light_direction, reflection_vector)), MATERIAL.shininess) * MATERIAL.specular;
-}
-
-// Task 3.2: compute diffuse lighting for light source with index `light_index`
-fn compute_lighting(position: vec3f, normal: vec3f, albedo: vec3f, light_index: u32) -> vec3f {
-    // Task 3.3: attenuate light color based on the light source's distance to the fragment
-    let d = distance(position, uLights[light_index].position);
-    let attenuation = 1.0 / (1.0 + d + pow(d, 2.0));
-    let attenuated_light_color = attenuation * uLights[light_index].color * uLights[light_index].intensity;
-
-    let light_direction = normalize(uLights[light_index].position - position);
-
-    let diffuse = compute_diffuse_lighting(normal, light_direction) * attenuated_light_color;
-
-    // Task 3.5: compute specular lighting
-    let specular = compute_specular_lighting(position, normal, light_direction) * attenuated_light_color;
-
-    return albedo * diffuse + specular;
-}
+@id(0) override WORKGROUP_SIZE_X: u32 = 16;
+@id(1) override WORKGROUP_SIZE_Y: u32 = 16;
 
 @compute
 @workgroup_size(16, 16)
@@ -104,4 +77,34 @@ fn compute(@builtin(global_invocation_id) global_id: vec3u) {
         }
         textureStore(output, global_id.xy, vec4f(color, 1.0));
     }
+}
+
+// Task 3.1: compute diffuse lighting (Lambertian reflection)
+fn compute_diffuse_lighting(normal: vec3f, light_direction: vec3f) -> f32 {
+    // Task 3.5: replace constant DIFFUSE_REFLECTIVITY with Material.diffuse
+    return max(0.0, dot(normal, light_direction)) * MATERIAL.diffuse;
+}
+
+// Task 3.5: compute specular lighting
+fn compute_specular_lighting(position: vec3f, normal: vec3f, light_direction: vec3f) -> f32 {
+    let view_direction = normalize(uniforms.camera.position - position);
+    let reflection_vector = reflect(-light_direction, normal);
+    return pow(max(0.0, dot(light_direction, reflection_vector)), MATERIAL.shininess) * MATERIAL.specular;
+}
+
+// Task 3.2: compute diffuse lighting for light source with index `light_index`
+fn compute_lighting(position: vec3f, normal: vec3f, albedo: vec3f, light_index: u32) -> vec3f {
+    // Task 3.3: attenuate light color based on the light source's distance to the fragment
+    let d = distance(position, uLights[light_index].position);
+    let attenuation = 1.0 / (0.5 + pow(d, 2.0));
+    let attenuated_light_color = attenuation * uLights[light_index].color * uLights[light_index].intensity;
+
+    let light_direction = normalize(uLights[light_index].position - position);
+
+    let diffuse = compute_diffuse_lighting(normal, light_direction) * attenuated_light_color;
+
+    // Task 3.5: compute specular lighting
+    let specular = compute_specular_lighting(position, normal, light_direction) * attenuated_light_color;
+
+    return albedo * diffuse + specular;
 }

@@ -333,11 +333,19 @@ export class Workshop extends Sample {
         // Task 4.3: create a compute pipeline to compute the illumination in our scene in a deferred way
         const deferredShadingShaderCode = await new Loader().loadText('deferred-shading.wgsl');
         const deferredShadingShaderModule = this.device.createShaderModule({code: deferredShadingShaderCode});
+        const deferredShadingWorkGroupSize = {
+            x: 16,
+            y: 16,
+        }
         const deferredShadingPipeline = this.device.createComputePipeline({
             layout: 'auto',
             compute: {
                 module: deferredShadingShaderModule,
                 entryPoint: 'compute',
+                constants: {
+                    0: deferredShadingWorkGroupSize.x,
+                    1: deferredShadingWorkGroupSize.y
+                },
             },
         });
 
@@ -361,20 +369,21 @@ export class Workshop extends Sample {
         this.deferredShadingPipelineData = {
             pipeline: deferredShadingPipeline,
             bindGroup: deferredShadingBindGroup,
-            workGroupSize: {
-                x: 16,
-                y: 16,
-            }
+            workGroupSize: deferredShadingWorkGroupSize,
         }
 
         // Task 4.4: create a compute pipeline to animate the light sources
         const animateLightsShaderCode = await new Loader().loadText('animate-lights.wgsl');
         const animateLightsShaderModule = this.device.createShaderModule({code: animateLightsShaderCode});
+        const animateLightsWorkGroupSize = { x: 64 };
         const animateLightsPipeline = this.device.createComputePipeline({
             layout: 'auto',
             compute: {
                 module: animateLightsShaderModule,
                 entryPoint: 'compute',
+                constants: {
+                    0: animateLightsWorkGroupSize.x,
+                },
             }
         });
 
@@ -390,9 +399,7 @@ export class Workshop extends Sample {
         this.animateLightsPipelineData = {
             pipeline: animateLightsPipeline,
             bindGroup: animateLightsBindGroup,
-            workGroupSize: {
-                x: 64,
-            }
+            workGroupSize: animateLightsWorkGroupSize,
         }
 
         // Task 4.1: create a pipeline to present our rendered image to the screen

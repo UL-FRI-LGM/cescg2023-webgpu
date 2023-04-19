@@ -80,7 +80,7 @@ fn compute_diffuse_lighting(normal: vec3f, light_direction: vec3f) -> f32 {
 fn compute_lighting(position: vec3f, normal: vec3f, albedo: vec3f, light_index: u32) -> vec3f {
     // Task 3.4 (bonus): attenuate light color based on the light source's distance to the fragment
     let d = distance(position, uLights[light_index].position);
-    let attenuation = 1.0 / (1.0 + d + pow(d, 2.0));
+    let attenuation = 1.0 / (0.5 + pow(d, 2.0));
     let attenuated_light_color = attenuation * uLights[light_index].color * uLights[light_index].intensity;
 
     let light_direction = normalize(uLights[light_index].position - position);
