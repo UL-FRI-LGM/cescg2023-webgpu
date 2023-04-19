@@ -81,8 +81,7 @@ const uniformBuffer = device.createBuffer({
 
 // We first fetch the image from the server and decode it asynchronously
 // to avoid any hickups during texture upload.
-const response = await fetch('brick.png');
-const blob = await response.blob();
+const blob = await fetch('brick.png').then(response => response.blob());
 const image = await createImageBitmap(blob);
 
 // Then we create a texture object. We have to specify its dimensions, format,
@@ -101,7 +100,7 @@ const texture = device.createTexture({
 // the source, destination, and size of the copy.
 device.queue.copyExternalImageToTexture(
     { source: image },
-    { texture: texture },
+    { texture },
     [image.width, image.height]
 );
 
