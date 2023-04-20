@@ -129,12 +129,18 @@ return FragmentOutput(
 ```
 
 After adding this new shader, make the necessary changes to our `Workshop` class:
-* In `#initResources`, create a G-Buffer with three textures that can be used as render attachments and texture bindings, and have the same dimensions as our canvas:
+* In `#initResources`, create a G-Buffer with three textures that can be used as render attachments and texture bindings, and have the same dimensions as our canvas.
+  However, for our positions and normals, we'll need a float format to store negative values and have a little more precision: `rgba16float`
 ```js
 this.gBuffer = {
     albedo: this.device.createTexture({...}),
-    positions: this.device.createTexture({...}),
-    normals: this.device.createTexture({...}),
+    positions: this.device.createTexture({
+      // ...
+      format: 'rgba16float',
+    }),
+    normals: this.device.createTexture({
+      format: 'rgba16float'
+    }),
 };
 ```
 * In `#initPipelines`, specify that our render pipeline now has four color attachments:
@@ -147,8 +153,8 @@ this.device.createRenderPipeline({
         targets: [
             {format: this.gpu.getPreferredCanvasFormat(),},
             {format: this.gpu.getPreferredCanvasFormat(),},
-            {format: this.gpu.getPreferredCanvasFormat(),},
-            {format: this.gpu.getPreferredCanvasFormat(),},
+            {format: 'rgba16float',},
+            {format: 'rgba16float',},
         ],
     },
     // ...

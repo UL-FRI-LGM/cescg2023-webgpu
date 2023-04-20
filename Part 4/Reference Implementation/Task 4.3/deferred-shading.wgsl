@@ -89,7 +89,7 @@ fn compute_diffuse_lighting(normal: vec3f, light_direction: vec3f) -> f32 {
 fn compute_specular_lighting(position: vec3f, normal: vec3f, light_direction: vec3f) -> f32 {
     let view_direction = normalize(uniforms.camera.position - position);
     let reflection_vector = reflect(-light_direction, normal);
-    return pow(max(0.0, dot(light_direction, reflection_vector)), MATERIAL.shininess) * MATERIAL.specular;
+    return pow(max(0.0, dot(view_direction, reflection_vector)), MATERIAL.shininess) * MATERIAL.specular;
 }
 
 // Task 3.2: compute diffuse lighting for light source with index `light_index`

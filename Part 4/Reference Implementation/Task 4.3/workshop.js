@@ -177,12 +177,12 @@ export class Workshop extends Sample {
             }),
             positions: this.device.createTexture({
                 size: [this.canvas.width, this.canvas.height],  // we'll keep the canvases dimensions for simplicity
-                format: this.gpu.getPreferredCanvasFormat(),    // we'll keep the preferred canvas format for simplicity
+                format: 'rgba16float',
                 usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
             }),
             normals: this.device.createTexture({
                 size: [this.canvas.width, this.canvas.height],  // we'll keep the canvases dimensions for simplicity
-                format: this.gpu.getPreferredCanvasFormat(),    // we'll keep the preferred canvas format for simplicity
+                format: 'rgba16float',
                 usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
             }),
         };
@@ -240,8 +240,8 @@ export class Workshop extends Sample {
                 targets: [
                     // Task 4.3: only render to G-Buffer attachments
                     {format: this.gpu.getPreferredCanvasFormat(),},
-                    {format: this.gpu.getPreferredCanvasFormat(),},
-                    {format: this.gpu.getPreferredCanvasFormat(),},
+                    {format: 'rgba16float',},
+                    {format: 'rgba16float',},
                 ],
             },
             depthStencil: {

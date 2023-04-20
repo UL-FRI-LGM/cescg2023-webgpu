@@ -260,7 +260,7 @@ const MATERIAL: Material = Material(
 fn compute_specular_lighting(position: vec3f, normal: vec3f, light_direction: vec3f) -> f32 {
     let view_direction = normalize(uniforms.camera.position - position);
     let reflection_vector = reflect(-light_direction, normal);
-    return pow(max(0.0, dot(light_direction, reflection_vector)), MATERIAL.shininess) * MATERIAL.specular;
+    return pow(max(0.0, dot(view_direction, reflection_vector)), MATERIAL.shininess) * MATERIAL.specular;
 }
 ```
 * In `compute_lighting`, call `compute_specular_lighting` and add it to the result:
