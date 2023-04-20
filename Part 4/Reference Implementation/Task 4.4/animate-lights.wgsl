@@ -24,7 +24,7 @@ fn compute(@builtin(global_invocation_id) global_id: vec3u) {
     let num_lights = arrayLength(&uLights);
 
     // terminate the thread if its global id is outside the light buffer's bounds
-    if num_lights < global_id.x {
+    if num_lights <= global_id.x {
         return;
     }
 

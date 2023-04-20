@@ -298,83 +298,140 @@ fn compute(@builtin(global_invocation_id) global_id: vec3u) {
     }
     
     // here we'll compute the lighting for a pixel
-
-    let albedo = textureLoad(gAlbedo, global_id.xy, 0).rgb;
-    let position = textureLoad(gPositions, global_id.xy, 0).xyz;
-    let normal = textureLoad(gNormals, global_id.xy, 0).xyz;
-
-    if all(albedo == vec3f()) {
-        textureStore(output, global_id.xy, vec4f(vec3f(), 1.0));
-    } else {
-        var color = AMBIENT_LIGHT;
-        for (var i = 0u; i < arrayLength(&uLights); i += 1u) {
-            color += compute_lighting(position, normal, albedo, i);
-        }
-        textureStore(output, global_id.xy, vec4f(color, 1.0));
-    }
 }
 ```
 
+All we need to do now is to actually compute the lighting and store the results in our storage texture using the [built-in `textureStore` function](https://www.w3.org/TR/WGSL/#texturestore).
+Since our render texture will not cleared automatically anymore, we'll need to do that ourselves.
+Add the following lines to the entry point of our compute shader:
+```wgsl
+let albedo = textureLoad(gAlbedo, global_id.xy, 0).rgb;
+let position = textureLoad(gPositions, global_id.xy, 0).xyz;
+let normal = textureLoad(gNormals, global_id.xy, 0).xyz;
 
-In our JavaScript file, make the following changes:
+if all(albedo == vec3f()) {
+    textureStore(output, global_id.xy, vec4f(vec3f(), 1.0));
+} else {
+    var color = AMBIENT_LIGHT;
+    for (var i = 0u; i < arrayLength(&uLights); i += 1u) {
+        color += compute_lighting(position, normal, albedo, i);
+    }
+    textureStore(output, global_id.xy, vec4f(color, 1.0));
+}
+```
+
+Now that we've set up our compute shader, remove the first render target and the light source buffer from our original shader:
+```wgsl
+struct FragmentOutput {
+    @location(0) albedo: vec4f,
+    @location(1) position: vec4f,
+    @location(2) normal: vec4f,
+}
+
+// ...
+
+@group(0) @binding(0) var<uniform> uniforms : Uniforms;
+@group(0) @binding(1) var uTexture : texture_2d<f32>;
+@group(0) @binding(2) var uSampler : sampler;
+
+// ...
+
+@fragment
+fn fragment(input : FragmentInput) -> FragmentOutput {
+    // Task 4.3: only output G-Buffer
+    return FragmentOutput(
+        textureSample(uTexture, uSampler, input.texcoord),
+        vec4f(input.position, 1.0),
+        vec4f(input.normal, 1.0),
+    );
+}
+```
+
+We're almost done! We just need to make some changes to our `Workshop` class:
 * In order for our compute shader to store its results in our render texture, we need to adjust two things: it needs the `STORAGE_BINDING` usage bit set, and it needs to use a format that supports storage textures:
 ```js
-    this.renderTexture = this.device.createTexture({
-        size: [this.canvas.width, this.canvas.height],
-        format: 'rgba8unorm',
-        usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
-    });
+this.renderTexture = this.device.createTexture({
+    size: [this.canvas.width, this.canvas.height],
+    format: 'rgba8unorm',
+    usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+});
 ```
-* In `#initPipelines`, create a compute pipeline using our new shader:
+* In `#initPipelines`, adjust the bind group layout for our first render pass: our uniform buffer no longer needs to be visible from the fragment stage, and the storage buffer is not used at all anymore.
+* Then remove the storage buffer from the corresponding bind group.
+* Also remove the render texture from the render pipeline's render targets and color attachments.
+* In `#initPipelines`, create a compute pipeline using our new shader with the appropriate override constants:
 ```js
-    const deferredShadingShaderCode = await Loader.loadShaderCode('deferred-shading.wgsl');
-    const deferredShadingShaderModule = this.device.createShaderModule({code: deferredShadingShaderCode});
-    const deferredShadingPipeline = this.device.createComputePipeline({
-        layout: 'auto',
-        compute: {
-            module: deferredShadingShaderModule,
-            entryPoint: 'compute',
+const deferredShadingShaderCode = await Loader.loadShaderCode('deferred-shading.wgsl');
+const deferredShadingShaderModule = this.device.createShaderModule({code: deferredShadingShaderCode});
+const deferredShadingWorkGroupSize = {
+  x: 16,
+  y: 16,
+}
+const deferredShadingPipeline = this.device.createComputePipeline({
+    layout: 'auto',
+    compute: {
+        module: deferredShadingShaderModule,
+        entryPoint: 'compute',
+        constants: {
+          WORKGROUP_SIZE_X: deferredShadingWorkGroupSize.x,
+          WORKGROUP_SIZE_Y: deferredShadingWorkGroupSize.y
         },
-    });
+    },
+});
 ```
 * Then create the corresponding bind group ...
-* ... and store everything in a helper object (make sure the `workGroupSize` matches the `@workgroup_size` in the shader):
 ```js
-    this.deferredShadingPipelineData = {
-        pipeline: deferredShadingPipeline,
-        bindGroup: deferredShadingBindGroup,
-        workGroupSize: {
-            x: 16,
-            y: 16,
-        }
-    }
+const deferredShadingBindGroup = this.device.createBindGroup({
+    layout: deferredShadingPipeline.getBindGroupLayout(0),
+    entries: [
+        // G-Buffer
+        {binding: 0, resource: this.gBuffer.albedo.createView()},
+        {binding: 1, resource: this.gBuffer.positions.createView()},
+        {binding: 2, resource: this.gBuffer.normals.createView()},
+        // uniforms & light sources
+        {binding: 3, resource: {buffer: this.uniformBuffer}},
+        {binding: 4, resource: {buffer: this.pointlightsBuffer}},
+        // rendered image
+        {binding: 5, resource: this.renderTexture.createView()},
+    ]
+});
 ```
-* Set the default bind group of the pipeline presenting to the canvas to a bind group using a view into our render texture.
+* ... and store everything in a helper object:
+```js
+this.deferredShadingPipelineData = {
+    pipeline: deferredShadingPipeline,
+    bindGroup: deferredShadingBindGroup,
+    workGroupSize: deferredShadingWorkGroupSize,
+}
+```
 * In `render`, encode the compute pipeline after the render pipeline creating the G-Buffer and before the pipeline rendering to the canvas:
 ```js
-    const gBufferPass = commandEncoder.beginRenderPass(this.createGBufferPipelineData.attachments);
-    // ...
-    gBufferPass.end();
+const gBufferPass = commandEncoder.beginRenderPass(this.createGBufferPipelineData.attachments);
+// ...
+gBufferPass.end();
 
-    const deferredShadingPass = commandEncoder.beginComputePass();
-    deferredShadingPass.setPipeline(this.deferredShadingPipelineData.pipeline);
-    deferredShadingPass.setBindGroup(0, this.deferredShadingPipelineData.bindGroup);
-    deferredShadingPass.dispatchWorkgroups(
-        Math.ceil(this.canvas.width / this.deferredShadingPipelineData.workGroupSize.x),
-        Math.ceil(this.canvas.height / this.deferredShadingPipelineData.workGroupSize.y),
-    );
-    deferredShadingPass.end();
-    
-    this.presentToScreenPipelineData.attachments.colorAttachments[0].view = this.context.getCurrentTexture().createView();
-    // ...
-    presentToScreenPass.end();
+const deferredShadingPass = commandEncoder.beginComputePass();
+deferredShadingPass.setPipeline(this.deferredShadingPipelineData.pipeline);
+deferredShadingPass.setBindGroup(0, this.deferredShadingPipelineData.bindGroup);
+deferredShadingPass.dispatchWorkgroups(
+    Math.ceil(this.canvas.width / this.deferredShadingPipelineData.workGroupSize.x),
+    Math.ceil(this.canvas.height / this.deferredShadingPipelineData.workGroupSize.y),
+);
+deferredShadingPass.end();
+
+this.presentToScreenPipelineData.attachments.colorAttachments[0].view = this.context.getCurrentTexture().createView();
+// ...
+presentToScreenPass.end();
 ```
-* Finally, add a new keyboard input, to switch between textures.
 
-## Task 4.4: Animate Light Sources in a Compute Shader
-In our final task, we'll add yet another compute shader to animate our light sources.
+Congratulations! You've mastered WebGPU compute shaders!
 
-First, add a new compute shader that reads from and writes to our storage buffer:
+## Task 4.4 (bonus): Animate Light Sources in a Compute Shader
+In our final task, we'll add another compute shader to animate our light sources.
+
+First, add a new compute shader that reads from and writes to our storage buffer.
+Simply copy the `PointLight` struct definition and add a new `direction` member (`u32`).
+Because of the [alignment and structure member layout rules](https://www.w3.org/TR/WGSL/#alignment-and-size) we still have a 32-bit chunk of memory in each of our point lights left, so we won't need to change the buffer's size after adding this new member.
 ```wgsl
 struct PointLight {
     position: vec3f,
@@ -383,24 +440,41 @@ struct PointLight {
     // until now, the PointLight struct used 4 bytes for padding. we can use this to store a movement state in each light
     direction: u32,
 }
+```
 
+We'll specify the entry point in a similar way as last task's deferred shading pipeline:
+```wgsl
+@group(0) @binding(0) var<storage, read_write> uLights : array<PointLight>;
+
+override WORKGROUP_SIZE: u32 = 64;
+
+@compute
+@workgroup_size(WORKGROUP_SIZE)
+fn compute(@builtin(global_invocation_id) global_id: vec3u) {
+    let num_lights = arrayLength(&uLights);
+
+    // terminate the thread if its global id is outside the light buffer's bounds
+    if num_lights <= global_id.x {
+        return;
+    }
+    
+    // we'll move the light sources here
+}
+```
+
+Now we'll move the light sources up and down between minimum and maximum y coordinates of 0 and 1:
+```wgsl
 const DOWN: u32 = 0u;
 const UP: u32 = 1u;
 
 const MOVEMENT_SPEED = 0.005;
 
-@group(0) @binding(0) var<storage, read_write> uLights : array<PointLight>;
+// ...
 
 @compute
-@workgroup_size(64)
+@workgroup_size(WORKGROUP_SIZE)
 fn compute(@builtin(global_invocation_id) global_id: vec3u) {
-    let num_lights = arrayLength(&uLights);
-
-    // terminate the thread if its global id is outside the light buffer's bounds
-    if num_lights < global_id.x {
-        return;
-    }
-
+    // ...
     if uLights[global_id.x].direction == DOWN {
         uLights[global_id.x].position.y = uLights[global_id.x].position.y - MOVEMENT_SPEED;
         if uLights[global_id.x].position.y < -0.5 {
@@ -416,25 +490,23 @@ fn compute(@builtin(global_invocation_id) global_id: vec3u) {
 ```
 Feel free to experiment with different movement patterns.
 
-In our JavaScript file, we'll make the following changes:
+In our `Workshop` class, we'll make the following changes:
 * If you haven't done so already, store the number of light sources in the `Workgroup` instance.
 * In `#initRenderPipelines`, create a new compute pipeline and a corresponding bind group and store them both in a helper object:
 ```js
-    this.animateLightsPipelineData = {
-        pipeline: animateLightsPipeline,
-        bindGroup: animateLightsBindGroup,
-        workGroupSize: {
-            x: 64,
-        }
-    }
+this.animateLightsPipelineData = {
+    pipeline: animateLightsPipeline,
+    bindGroup: animateLightsBindGroup,
+    workGroupSize:  animateLightsWorkGroupSize,
+}
 ```
 * Finally, in `render` encode our new compute pipeline:
 ```js
-    const animateLightsPass = commandEncoder.beginComputePass();
-    animateLightsPass.setPipeline(this.animateLightsPipelineData.pipeline);
-    animateLightsPass.setBindGroup(0, this.animateLightsPipelineData.bindGroup);
-    animateLightsPass.dispatchWorkgroups(
-        Math.ceil(this.numLightSources / this.animateLightsPipelineData.workGroupSize.x)
-    );
-    animateLightsPass.end();
+const animateLightsPass = commandEncoder.beginComputePass();
+animateLightsPass.setPipeline(this.animateLightsPipelineData.pipeline);
+animateLightsPass.setBindGroup(0, this.animateLightsPipelineData.bindGroup);
+animateLightsPass.dispatchWorkgroups(
+    Math.ceil(this.numLightSources / this.animateLightsPipelineData.workGroupSize.x)
+);
+animateLightsPass.end();
 ```
