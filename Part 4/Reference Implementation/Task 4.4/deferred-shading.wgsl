@@ -52,8 +52,8 @@ const MATERIAL: Material = Material(
 @group(0) @binding(5) var output : texture_storage_2d<rgba8unorm, write>;
 
 // Override constants
-@id(0) override WORKGROUP_SIZE_X: u32 = 16;
-@id(1) override WORKGROUP_SIZE_Y: u32 = 16;
+override WORKGROUP_SIZE_X: u32 = 16;
+override WORKGROUP_SIZE_Y: u32 = 16;
 
 @compute
 @workgroup_size(WORKGROUP_SIZE_X, WORKGROUP_SIZE_Y)
@@ -61,7 +61,7 @@ fn compute(@builtin(global_invocation_id) global_id: vec3u) {
     let output_size = vec2u(textureDimensions(output));
 
     // terminate the thread if its global id is outside the output texture's bounds
-    if output_size.x < global_id.x || output_size.y < global_id.y {
+    if output_size.x <= global_id.x || output_size.y <= global_id.y {
         return;
     }
 

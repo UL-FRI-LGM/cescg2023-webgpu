@@ -16,7 +16,7 @@ const MOVEMENT_SPEED = 0.005;
 
 @group(0) @binding(0) var<storage, read_write> uLights : array<PointLight>;
 
-@id(0) override WORKGROUP_SIZE: u32 = 64;
+override WORKGROUP_SIZE: u32 = 64;
 
 @compute
 @workgroup_size(WORKGROUP_SIZE)

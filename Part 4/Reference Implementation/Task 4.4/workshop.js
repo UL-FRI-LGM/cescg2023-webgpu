@@ -343,8 +343,8 @@ export class Workshop extends Sample {
                 module: deferredShadingShaderModule,
                 entryPoint: 'compute',
                 constants: {
-                    0: deferredShadingWorkGroupSize.x,
-                    1: deferredShadingWorkGroupSize.y
+                    WORKGROUP_SIZE_X: deferredShadingWorkGroupSize.x,
+                    WORKGROUP_SIZE_Y: deferredShadingWorkGroupSize.y
                 },
             },
         });
@@ -382,7 +382,7 @@ export class Workshop extends Sample {
                 module: animateLightsShaderModule,
                 entryPoint: 'compute',
                 constants: {
-                    0: animateLightsWorkGroupSize.x,
+                    WORKGROUP_SIZE: animateLightsWorkGroupSize.x,
                 },
             }
         });
