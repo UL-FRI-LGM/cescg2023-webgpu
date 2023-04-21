@@ -1,7 +1,11 @@
 # WebGPU Examples
 A collection of WebGPU examples for the CESCG 2023 conference workshop.
 
-# Building and running
-The examples do not need to be built, but some of them require a server
-capable of serving static files (WebGL+CORS restrictions). A basic Node.js
-implementation is available in `bin/server.js`.
+## You will need
+
+* A browser that supports WebGPU (Chromium Dev or Firefox Nightly)
+* Your favorite text editor
+    * We will use VSCode
+* A server for static content
+    * We recommend VSCode extension "Live Server"
+    * Alternatively, you can use `bin/server.js` or `bin/server.py`
