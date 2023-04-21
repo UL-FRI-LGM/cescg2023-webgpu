@@ -9,18 +9,22 @@ const extnameToContentType = {
     'css'  : 'text/css',
     'html' : 'text/html',
     'json' : 'text/json',
+    'wgsl' : 'text/wgsl',
     'png'  : 'image/png',
     'jpg'  : 'image/jpeg',
     'jpeg' : 'image/jpeg',
+    'webp' : 'image/webp',
 };
 
 const server = http.createServer(async (req, res) => {
+    // decode the URL as it may include escape sequences
+    const url = decodeURIComponent(req.url);
     // ensure that request path does not jump out of the project root
-    const requestPath = path.join('/', req.url);
+    const requestPath = path.join('/', url);
 
     // get a file path from the project root
     const rootPath = path.join(__dirname, '..');
-    let filePath = path.join(rootPath, req.url);
+    let filePath = path.join(rootPath, url);
     if (filePath.endsWith(path.sep)) {
         filePath = path.join(filePath, 'index.html');
     }
@@ -35,17 +39,17 @@ const server = http.createServer(async (req, res) => {
         res.setHeader('Content-Type', contentType);
         res.writeHead(200);
         res.end(data);
-        console.log(`200 ${req.method} ${req.url}`);
+        console.log(`200 ${req.method} ${url}`);
     } catch (e) {
         // if the file cannot be read, respond with an empty 404
         res.writeHead(404);
         res.end();
-        console.log(`404 ${req.method} ${req.url}`);
+        console.log(`404 ${req.method} ${url}`);
     }
 });
 
 // read the port from the environment variable PORT, defaulting to 8000
-const port = process.env.PORT ?? 8000;
+const port = process.env.PORT ?? 3000;
 server.listen(port, e => {
     console.log(`Listening on port ${port}`);
 });
