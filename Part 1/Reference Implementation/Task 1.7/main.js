@@ -81,7 +81,7 @@ const uniformBuffer = device.createBuffer({
 // To bind resources to the shader, we need to create a bind group for every
 // group specified in the shader. Here we use a single bind group and bind
 // the uniform buffer to the binding location 0, as specified in the shader.
-const uniformBindGroup = device.createBindGroup({
+const bindGroup = device.createBindGroup({
     // The layout for the bind group can be queried from the pipeline, but
     // it is less error-prone and more efficient to create it explicitly.
     layout: pipeline.getBindGroupLayout(0),
@@ -116,7 +116,7 @@ function render() {
     });
     renderPass.setPipeline(pipeline);
     // Here we set the bind group for this draw command.
-    renderPass.setBindGroup(0, uniformBindGroup);
+    renderPass.setBindGroup(0, bindGroup);
     renderPass.setVertexBuffer(0, vertexBuffer);
     renderPass.setIndexBuffer(indexBuffer, 'uint32');
     renderPass.drawIndexed(3);

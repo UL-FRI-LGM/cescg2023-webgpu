@@ -113,7 +113,7 @@ const sampler = device.createSampler({
 
 // We add both the texture and the sampler to the bind group,
 // as they cannot be written to a buffer.
-const uniformBindGroup = device.createBindGroup({
+const bindGroup = device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),
     entries: [
         {
@@ -152,7 +152,7 @@ function render() {
         ]
     });
     renderPass.setPipeline(pipeline);
-    renderPass.setBindGroup(0, uniformBindGroup);
+    renderPass.setBindGroup(0, bindGroup);
     renderPass.setVertexBuffer(0, vertexBuffer);
     renderPass.setIndexBuffer(indexBuffer, 'uint32');
     renderPass.drawIndexed(3);
