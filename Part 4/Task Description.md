@@ -1,12 +1,186 @@
 # PART 4: Color Attachments & Compute Shaders
 
-In the final part of our workshop, we'll learn about writing to multiple attachments, using the output of one pipeline in another one and the new first-class citizen for GPU programming in the browser: compute shaders!
-Instead of computing everything in one render pipeline, we'll turn our `Workshop` class into a deferred renderer that first stores all parameters necessary to compute the illumination at a pixel into textures.
-To compute the actual lighting, we'll use a compute shader. Then we'll use a second render pipeline to present the result to the canvas.
-Finally, we'll make things a little more interesting by adding a second compute pipeline to move our light sources around over time.
+In the final part of our workshop, we'll get to know the shiny new first-class citizen for GPU programming in the browser: compute shaders!
+We'll use a compute pipeline to animate the light sources in our scene. Then, as a bonus, we'll take a look at offscreen rendering, rendering into
+multiple attachments, and finally also deferred shading.
 
-## Task 4.1: Render to a Texture
-As a first step, we'll split our render pipeline into two separate pipelines: one that renders to a texture and another one that renders the resulting texture to the canvas.
+## Task 4.1: Animate Light Sources in a Compute Shader
+In Part 3, we've created a storage buffer to pass our light sources to the GPU. This will come in handy now, as we're
+going to use a compute shader to change positions of our light sources.
+
+Like vertex and fragment shader stages, a compute shader stage needs an entry point annotated with `@compute` attribute.
+While vertex and fragment shaders are invoked via draw calls, compute shaders are invoked via dispatching workgroups.
+Each workgroup in a dispatch starts [a number of threads](https://www.w3.org/TR/webgpu/#dom-supported-limits-maxcomputeinvocationsperworkgroup) that is defined in the shader.
+Each thread has a local id that uniquely identifies it within the workgroup, as well as a global id that uniquely identifies it within all workgroups.
+The strategy used to assign thread ids is defined in the shader, using the [required `@workgroup_size(x[,y[,z]])` entry point attribute](https://www.w3.org/TR/WGSL/#entry-point-attributes).
+For example, you can imagine that the local invocation id for each thread in a workgroup is computed like this:
+```wgsl
+for (var x = 0; x < workGroupSize.x; ++x) {
+    for (var y = 0; y < workGroupSize.y; ++y) {
+        for (var z = 0; z < workGroupSize.z; ++z) {
+            const local_invocation_id = vec3u(x, y, z);
+        }
+    }
+}
+```
+
+In our compute shader, we'll spawn a thread for each light source in the storage buffer and use the thread's global id to determine which light source it should process.
+A thread's global id can be accessed in the shader via the [built-in `global_invocation_id`](https://www.w3.org/TR/WGSL/#builtin-values).
+Since our storage buffer contains a 1D array, we'll only specify a 1D workgroup size, and use the x component of the `global_invocation_id`:
+```wgsl
+@compute
+@workgroup_size(64)
+fn compute(@builtin(global_invocation_id) global_id: vec3u) {
+    let thread_id = global_id.x;
+}
+```
+
+With a workgroup size of `64`, we have to dispatch `numLightSources / 64` workgroups on the JavaScript side to spawn one thread per light source.
+It would be nice to not have to hard code this into both the shader and the JavaScript file.
+Luckily, there is the WGSL / WebGPU concept of [override declarations](https://www.w3.org/TR/WGSL/#override-decls) to define contant values in shaders that can be overridden by a pipeline at creation time:
+```wgsl
+override WORKGROUP_SIZE: u32 = 64;
+```
+
+When we create a pipeline using this shader, we can use the `override` constants name to override it in the shader stage's descriptor object, eg.:
+```js
+{
+    module: shaderModule,
+    entryPoint: 'compute',
+    constants: {
+      WORKGROUP_SIZE: 128,
+    },
+}
+```
+
+Now that we know a bit about workgroups, workgroup sizes, and override constants, it is time to define the entry point to our compute shader:
+
+First, add a new compute shader that reads from and writes to our storage buffer.
+Simply copy the `PointLight` struct definition and add a new `direction` member (`u32`).
+Because of the [alignment and structure member layout rules](https://www.w3.org/TR/WGSL/#alignment-and-size) we still have a 32-bit chunk of memory in each of our point lights left, so we won't need to change the buffer's size after adding this new member.
+```wgsl
+struct PointLight {
+    position: vec3f,
+    intensity: f32,
+    color: vec3f,
+    // until now, the PointLight struct used 4 bytes for padding. we can use this to store a movement state in each light
+    direction: u32,
+}
+```
+
+Our compute shader only uses a single buffer binding: the storage buffer containing our light sources:
+```wgsl
+@group(0) @binding(0) var<storage, read_write> uLights : array<PointLight>;
+```
+
+We'll then add a compute shader entry point using an override constant to specify the workgroup size:
+```wgsl
+override WORKGROUP_SIZE: u32 = 64;
+
+@compute
+@workgroup_size(WORKGROUP_SIZE)
+fn compute(@builtin(global_invocation_id) global_id: vec3u) {    
+    // we'll move the light sources around in here
+}
+```
+
+Each workgroup will have `WORKGROUP_SIZE` threads. However, it might be that the number of light sources is not divisible
+by the `WORKGROUP_SIZE`. In that case, some threads will have a `global_invocation_id` that is out of bounds for our
+light source buffer. To avoid out-of-bounds array accesses, we'll add a safe-guard to our compute shader:
+```wgsl
+@compute
+@workgroup_size(WORKGROUP_SIZE)
+fn compute(@builtin(global_invocation_id) global_id: vec3u) {
+    let num_lights = arrayLength(&uLights);
+
+    // terminate the thread if its global id is outside the light buffer's bounds
+    if num_lights <= global_id.x {
+        return;
+    }
+    
+    // we'll move the light sources around in here
+}
+```
+
+Now we'll move the light sources up and down between minimum and maximum y coordinates of 0 and 1:
+```wgsl
+const DOWN: u32 = 0u;
+const UP: u32 = 1u;
+
+const MOVEMENT_SPEED = 0.005;
+
+// ...
+
+@compute
+@workgroup_size(WORKGROUP_SIZE)
+fn compute(@builtin(global_invocation_id) global_id: vec3u) {
+    // ...
+    if uLights[global_id.x].direction == DOWN {
+        uLights[global_id.x].position.y = uLights[global_id.x].position.y - MOVEMENT_SPEED;
+        if uLights[global_id.x].position.y < -0.5 {
+            uLights[global_id.x].direction = UP;
+        }
+    } else {
+        uLights[global_id.x].position.y = uLights[global_id.x].position.y + MOVEMENT_SPEED;
+        if uLights[global_id.x].position.y > 0.5 {
+            uLights[global_id.x].direction = DOWN;
+        }
+    }
+}
+```
+Feel free to experiment with different movement patterns.
+
+In our `Workshop` class, we'll make the following changes:
+* If you haven't done so already, store the number of light sources in the `Workgroup` instance.
+* In `#initRenderPipelines`, create a new compute pipeline:
+```js
+const animateLightsShaderCode = await new Loader().loadText('animate-lights.wgsl');
+const animateLightsShaderModule = this.device.createShaderModule({code: animateLightsShaderCode});
+const animateLightsWorkGroupSize = { x: 64 };
+const animateLightsPipeline = this.device.createComputePipeline({
+    layout: 'auto',
+    compute: {
+        module: animateLightsShaderModule,
+        entryPoint: 'compute',
+        constants: {
+            WORKGROUP_SIZE: animateLightsWorkGroupSize.x,
+        },
+    }
+});
+```
+* Then add a bind group for our new pipeline:
+```js
+const animateLightsBindGroup = this.device.createBindGroup({
+    layout: animateLightsPipeline.getBindGroupLayout(0),
+    entries: [
+        {binding: 0, resource: {buffer: this.pointlightsBuffer}},
+    ]
+});
+```
+* Since we'll use multiple pipelines in this part of the workshop, store pipeline-related data in a helper object for convenience:
+```js
+this.animateLightsPipelineData = {
+    pipeline: animateLightsPipeline,
+    bindGroup: animateLightsBindGroup,
+    workGroupSize:  animateLightsWorkGroupSize,
+}
+```
+* Finally, in `render` encode our new compute pipeline before submitting the command encoder to the queue:
+```js
+const animateLightsPass = commandEncoder.beginComputePass();
+animateLightsPass.setPipeline(this.animateLightsPipelineData.pipeline);
+animateLightsPass.setBindGroup(0, this.animateLightsPipelineData.bindGroup);
+animateLightsPass.dispatchWorkgroups(
+    Math.ceil(this.numLightSources / this.animateLightsPipelineData.workGroupSize.x)
+);
+animateLightsPass.end();
+```
+
+And that's it! You've made your first steps in the world of WebGPU compute shaders.
+
+## Task 4.2 (bonus): Render to a Texture
+Next we're going to experiment with multiple render targets. As a first step, we'll split our render pipeline into two
+separate pipelines: one that renders to a texture and another one that renders the resulting texture to the canvas.
 To do this, we'll first add a new shader that renders a textured quadrangle covering the whole canvas.
 In this shader, we'll store the vertices and texture coordinates directly in the shader, as we've learned in Part 1:
 ```wgsl
@@ -56,22 +230,37 @@ We can simply leave the shader as it is.
 We'll need to make some changes to our `Workshop` class, however:
 * In `#initResources`, create a new texture that has the same dimensions as our canvas, and can be used as both a texture binding and a render attachment.
   We don't care too much about the format for now, so we'll use `this.gpu.getPreferredCanvasFormat()`.
-* In `#initPipelines`, set the original render pipeline's color attachment's view to a `GPUTextureView` created from our render texture.
-* Since we'll use multiple pipelines in this part of the workshop, optionally store all things we require for encoding our original render pipeline in a helper object for convenience.
-  E.g., like so:
+* In `#initPipelines`, set the original render pipelines' color attachment's view to a `GPUTextureView` created from our render texture.
+* Store all things we require for encoding our original render pipeline in a helper object for convenience:
 ```js
-    this.renderToTexturePipelineData = {
-        pipeline: renderToTexturePipeline,
-        bindGroup: renderToTextureBindGroup,
-        attachments: {
-            colorAttachments: [renderToTextureColorAttachment],
-            depthStencilAttachment: renderToTextureDepthStencilAttachment,
-        }
-    };
+this.renderToTexturePipelineData = {
+    pipeline: backFaceCullingPipeline,
+    bindGroup: renderToTextureBindGroup,
+    attachments: {
+        colorAttachments: [renderToTextureColorAttachment],
+        depthStencilAttachment: renderToTextureDepthStencilAttachment,
+    },
+    backFaceCullingPipeline,
+    frontFaceCullingPipeline,
+};
 ```
 * Also in `#initPipelines`, create a new shader module, render pipeline, color attachment, and bind group for our new shader.
-  Since our new shader uses hard coded vertices and texture coordinates, we don't have to specify a vertex layout.
-* Again, to keep things separated, optionally store this in a helper object as well:
+  Since our new shader uses hard coded vertices and texture coordinates, we don't have to specify a vertex layout:
+```js
+const presentToScreenPipeline = this.device.createRenderPipeline({
+    layout: 'auto',
+    vertex: {
+        module: presentToScreenShaderModule,
+        entryPoint: 'vertex',
+    },
+    fragment: {
+        module: presentToScreenShaderModule,
+        entryPoint: 'fragment',
+        targets: [{ format: this.gpu.getPreferredCanvasFormat() }],
+    },
+});
+```
+* Again, to keep things separated, store this in a helper object as well:
 ```js
 this.presentToScreenPipelineData = {
     pipeline: presentToScreenPipeline,
@@ -104,7 +293,7 @@ presentToScreenPass.draw(6);
 presentToScreenPass.end();
 ```
 
-## Task 4.2: Create a G-Buffer
+## Task 4.3 (bonus): Create a G-Buffer
 Render pipelines can not only render to a single texture, but also to multiple textures.
 In this task, we're going to experiment with multiple color attachments by creating a geometry buffer (G-Buffer) that stores all data we use for computing the color of a pixel.
 It will consist of three textures that hold the positions, normals, and albedo for each pixel on screen.
@@ -227,7 +416,7 @@ key(type, keys) {
 }
 ```
 
-## Task 4.3: Compute Illumination in a Compute Shader
+## Task 4.4 (bonus): Compute Illumination in a Compute Shader
 Our uniform buffer, G-Buffer, and storage buffer contain all information we need to compute the illumination for a pixel.
 Instead of computing the illumination in the fragment shader directly, we can defer these computations to a later point in time.
 This is called [deferred shading](https://en.wikipedia.org/wiki/Deferred_shading).
@@ -236,7 +425,7 @@ This can become a problem in complex scenes with lots of overdraw, i.e., where i
 Deferred shading tackles this problem by decoupling lighting computations from the scene complexity.
 
 Since, our little scene is not very complex, and we won't gain anything from switching from forward to deferred shading.
-But it gives us an excuse to show of compute shaders and multiple render attachments.
+But it gives us an excuse to show off compute shaders with 2D workgroup sizes and multiple render attachments.
 It also gives you a setup you can come back to for experimenting with screen-space effects, like SSAO or screen-space reflections, after the workshop is done.
 
 First, create a new shader for this task. Simply move all lighting-related struct definitions, constants and functions for computing the illumination to the new shader.
@@ -258,37 +447,15 @@ Our complete bindings look like this:
 @group(0) @binding(5) var output : texture_storage_2d<rgba8unorm, write>;
 ```
 
-Like vertex and fragment shader stages, a compute shader stage needs an entry point annotated with `@compute` attribute.
-While vertex and fragment shaders are invoked via draw calls, compute shaders are invoked via dispatching workgroups.
-Each workgroup in a dispatch starts [a number of threads](https://www.w3.org/TR/webgpu/#dom-supported-limits-maxcomputeinvocationsperworkgroup) that is defined in the shader.
-Each thread has a local id that uniquely identifies it within the workgroup, as well as a global id that uniquely identifies it within all workgroups.
-The strategy used to assign thread ids is defined in the shader, using the [required `@workgroup_size(x[,y[,z]])` entry point attribute](https://www.w3.org/TR/WGSL/#entry-point-attributes).
-For example, you can imagine that the local invocation id for each thread in a workgroup is computed like this:
-```wgsl
-for (var x = 0; x < workGroupSize.x; ++x) {
-    for (var y = 0; y < workGroupSize.y; ++y) {
-        for (var z = 0; z < workGroupSize.z; ++z) {
-            const local_invocation_id = vec3u(x, y, z);
-        }
-    }
-}
-```
-
-In our compute shader, we'll spawn a thread for each pixel in the storage texture and use the thread's global id to determine which pixel it should process.
-A thread's global id can be accessed in the shader via the [built-in `global_invocation_id`](https://www.w3.org/TR/WGSL/#builtin-values).
-To get x and y coordinates for each thread, we thus have to define a 2D workgroup size, e.g.:
+We'll spawn one thread per pixel in our storage texture. Each thread will process exactly one pixel.
+To get x and y´ coordinates for each thread, we thus have to define a 2D workgroup size, e.g.:
 ```wgsl
 @workgroup_size(16, 16) // each workgroup can have at most 256 threads
 ```
 
 With a workgroup size of `16x16`, we have to dispatch `(textureWidth / 16) * (textureHeight / 16)` workgroups to process the whole texture.
-It would be nice to not have to hard code this into both the shader and the JavaScript file.
-Luckily, there is the WGSL / WebGPU concept of [override declarations](https://www.w3.org/TR/WGSL/#override-decls) to defined contant values in shaders that can be overridden by a pipeline at creation time:
-```wgsl
-override WORKGROUP_SIZE_X: u32 = 16;
-```
-
-Now that we know a bit about workgroups, workgroup sizes, and override constants, it is time to define the entry point to our compute shader:
+We'll use override constants again to control the workgroup size in from the JavaScript side.
+Our compute entry point looks like this:
 ```wgsl
 override WORKGROUP_SIZE_X: u32 = 16;
 override WORKGROUP_SIZE_Y: u32 = 16;
@@ -308,7 +475,7 @@ fn compute(@builtin(global_invocation_id) global_id: vec3u) {
 ```
 
 All we need to do now is to actually compute the lighting and store the results in our storage texture using the [built-in `textureStore` function](https://www.w3.org/TR/WGSL/#texturestore).
-Since our render texture will not cleared automatically anymore, we'll need to do that ourselves.
+Since our render texture will not be cleared automatically anymore, we'll need to do that ourselves.
 Add the following lines to the entry point of our compute shader:
 ```wgsl
 let albedo = textureLoad(gAlbedo, global_id.xy, 0).rgb;
@@ -432,87 +599,3 @@ presentToScreenPass.end();
 
 Congratulations! You've mastered WebGPU compute shaders!
 
-## Task 4.4 (bonus): Animate Light Sources in a Compute Shader
-In our final task, we'll add another compute shader to animate our light sources.
-
-First, add a new compute shader that reads from and writes to our storage buffer.
-Simply copy the `PointLight` struct definition and add a new `direction` member (`u32`).
-Because of the [alignment and structure member layout rules](https://www.w3.org/TR/WGSL/#alignment-and-size) we still have a 32-bit chunk of memory in each of our point lights left, so we won't need to change the buffer's size after adding this new member.
-```wgsl
-struct PointLight {
-    position: vec3f,
-    intensity: f32,
-    color: vec3f,
-    // until now, the PointLight struct used 4 bytes for padding. we can use this to store a movement state in each light
-    direction: u32,
-}
-```
-
-We'll specify the entry point in a similar way as last task's deferred shading pipeline:
-```wgsl
-@group(0) @binding(0) var<storage, read_write> uLights : array<PointLight>;
-
-override WORKGROUP_SIZE: u32 = 64;
-
-@compute
-@workgroup_size(WORKGROUP_SIZE)
-fn compute(@builtin(global_invocation_id) global_id: vec3u) {
-    let num_lights = arrayLength(&uLights);
-
-    // terminate the thread if its global id is outside the light buffer's bounds
-    if num_lights <= global_id.x {
-        return;
-    }
-    
-    // we'll move the light sources here
-}
-```
-
-Now we'll move the light sources up and down between minimum and maximum y coordinates of 0 and 1:
-```wgsl
-const DOWN: u32 = 0u;
-const UP: u32 = 1u;
-
-const MOVEMENT_SPEED = 0.005;
-
-// ...
-
-@compute
-@workgroup_size(WORKGROUP_SIZE)
-fn compute(@builtin(global_invocation_id) global_id: vec3u) {
-    // ...
-    if uLights[global_id.x].direction == DOWN {
-        uLights[global_id.x].position.y = uLights[global_id.x].position.y - MOVEMENT_SPEED;
-        if uLights[global_id.x].position.y < -0.5 {
-            uLights[global_id.x].direction = UP;
-        }
-    } else {
-        uLights[global_id.x].position.y = uLights[global_id.x].position.y + MOVEMENT_SPEED;
-        if uLights[global_id.x].position.y > 0.5 {
-            uLights[global_id.x].direction = DOWN;
-        }
-    }
-}
-```
-Feel free to experiment with different movement patterns.
-
-In our `Workshop` class, we'll make the following changes:
-* If you haven't done so already, store the number of light sources in the `Workgroup` instance.
-* In `#initRenderPipelines`, create a new compute pipeline and a corresponding bind group and store them both in a helper object:
-```js
-this.animateLightsPipelineData = {
-    pipeline: animateLightsPipeline,
-    bindGroup: animateLightsBindGroup,
-    workGroupSize:  animateLightsWorkGroupSize,
-}
-```
-* Finally, in `render` encode our new compute pipeline:
-```js
-const animateLightsPass = commandEncoder.beginComputePass();
-animateLightsPass.setPipeline(this.animateLightsPipelineData.pipeline);
-animateLightsPass.setBindGroup(0, this.animateLightsPipelineData.bindGroup);
-animateLightsPass.dispatchWorkgroups(
-    Math.ceil(this.numLightSources / this.animateLightsPipelineData.workGroupSize.x)
-);
-animateLightsPass.end();
-```
