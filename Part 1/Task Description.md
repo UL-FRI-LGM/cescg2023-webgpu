@@ -154,7 +154,7 @@ fn vertex(input : VertexInput) -> VertexOutput {
 @fragment
 fn fragment(input : FragmentInput) -> FragmentOutput {
     var output : FragmentOutput;
-    output.color = vec4f(1.0, 0.6, 0.2, 1.0);
+    output.color = vec4f(1, 0, 0, 1);
     return output;
 }
 ```
