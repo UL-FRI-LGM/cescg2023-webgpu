@@ -51,7 +51,6 @@ const MATERIAL: Material = Material(
 // output texture
 @group(0) @binding(5) var output : texture_storage_2d<rgba8unorm, write>;
 
-// Override constants
 override WORKGROUP_SIZE_X: u32 = 16;
 override WORKGROUP_SIZE_Y: u32 = 16;
 

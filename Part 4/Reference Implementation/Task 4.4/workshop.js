@@ -19,11 +19,11 @@ export class Workshop extends Sample {
         await this.#initPipelines();
     }
 
-    // Task 4.2: add a keyboard inputs to switch between render targets
+    // Task 4.3: add a keyboard inputs to switch between render targets
     key(type, keys) {
         if (type === 'up') {
             if (keys.includes('c') || keys.includes('C')) {
-                // Task 4.1: use our new helper objects
+                // Task 4.2: use our new helper objects
                 this.cullBackFaces = !this.cullBackFaces;
                 if (this.cullBackFaces) {
                     this.createGBufferPipelineData.pipeline = this.createGBufferPipelineData.backFaceCullingPipeline;
@@ -55,7 +55,16 @@ export class Workshop extends Sample {
 
         const commandEncoder = this.device.createCommandEncoder();
 
-        // Task 4.1: no longer set the color attachment's view from the current frame's view
+        // Task 4.1: encode the animate lights pass
+        const animateLightsPass = commandEncoder.beginComputePass();
+        animateLightsPass.setPipeline(this.animateLightsPipelineData.pipeline);
+        animateLightsPass.setBindGroup(0, this.animateLightsPipelineData.bindGroup);
+        animateLightsPass.dispatchWorkgroups(
+            Math.ceil(this.numLightSources / this.animateLightsPipelineData.workGroupSize.x)
+        );
+        animateLightsPass.end();
+
+        // Task 4.2: no longer set the color attachment's view from the current frame's view
         const renderToTexturePass = commandEncoder.beginRenderPass(
             this.createGBufferPipelineData.attachments
         );
@@ -66,16 +75,7 @@ export class Workshop extends Sample {
         renderToTexturePass.drawIndexed(this.model.numIndices);
         renderToTexturePass.end();
 
-        // Task 4.4: encode the animate lights pass
-        const animateLightsPass = commandEncoder.beginComputePass();
-        animateLightsPass.setPipeline(this.animateLightsPipelineData.pipeline);
-        animateLightsPass.setBindGroup(0, this.animateLightsPipelineData.bindGroup);
-        animateLightsPass.dispatchWorkgroups(
-            Math.ceil(this.numLightSources / this.animateLightsPipelineData.workGroupSize.x)
-        );
-        animateLightsPass.end();
-
-        // Task 4.3: encode the deferred shading pass
+        // Task 4.4: encode the deferred shading pass
         const deferredShadingPass = commandEncoder.beginComputePass();
         deferredShadingPass.setPipeline(this.deferredShadingPipelineData.pipeline);
         deferredShadingPass.setBindGroup(0, this.deferredShadingPipelineData.bindGroup);
@@ -85,7 +85,7 @@ export class Workshop extends Sample {
         );
         deferredShadingPass.end();
 
-        // Task 4.1: encode the pipeline rendering to the screen
+        // Task 4.2: encode the pipeline rendering to the screen
         this.presentToScreenPipelineData.attachments.colorAttachments[0].view = this.context.getCurrentTexture().createView();
         const presentToScreenPass = commandEncoder.beginRenderPass(
             this.presentToScreenPipelineData.attachments,
@@ -139,7 +139,7 @@ export class Workshop extends Sample {
 
         // Create light source buffer
         const pointLightStrideInElements = 8; // 3 (position) + 1 (radius) + 3 (color) + 1 (padding)
-        // Task 4.4: store number of light sources in the Sample
+        // Task 4.1: store number of light sources in the Sample
         this.numLightSources = 20;
         this.pointlightsBuffer = this.device.createBuffer({
             size: Float32Array.BYTES_PER_ELEMENT * pointLightStrideInElements * this.numLightSources,
@@ -166,16 +166,16 @@ export class Workshop extends Sample {
         }
         this.pointlightsBuffer.unmap();
 
-        // Task 4.1: create an output texture for the rendered image
+        // Task 4.2: create an output texture for the rendered image
         this.renderTexture = this.device.createTexture({
             size: [this.canvas.width, this.canvas.height],  // we'll keep the canvases dimensions for simplicity
-            // Task 4.3: use a texture format that supports the storage binding usage (e.g., rgba8unorm)
+            // Task 4.4: use a texture format that supports the storage binding usage (e.g., rgba8unorm)
             format: 'rgba8unorm',
-            // Task 4.3: replace RENDER_ATTACHMENT with STORAGE_BINDING
+            // Task 4.4: replace RENDER_ATTACHMENT with STORAGE_BINDING
             usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
         });
 
-        // Task 4.2: set up a G-Buffer consisting of three textures:
+        // Task 4.3: set up a G-Buffer consisting of three textures:
         //  - albedo
         //  - positions
         //  - normals
@@ -199,7 +199,14 @@ export class Workshop extends Sample {
     }
 
     async #initPipelines() {
-        // Task 4.1: split our previous pipeline into two pipelines: one that renders to a texture and another that
+        await this.#initRenderToTexturePipeline();
+        await this.#initDeferredShadingPipeline();
+        await this.#initPresentToScreenPipeline();
+        await this.#initAnimateLightsPipeline();
+    }
+
+    async #initRenderToTexturePipeline() {
+        // Task 4.2: split our previous pipeline into two pipelines: one that renders to a texture and another that
         //  takes the rendered texture as an input and outputs it to the canvas
         //  To avoid confusion, we pack each pipeline into helper objects
 
@@ -211,7 +218,7 @@ export class Workshop extends Sample {
                 // uniform buffer
                 {
                     binding: 0,
-                    // Task 4.3: make the uniform buffer only visible in the vertex stage
+                    // Task 4.4: make the uniform buffer only visible in the vertex stage
                     visibility: GPUShaderStage.VERTEX,
                     buffer: {},
                 },
@@ -227,7 +234,7 @@ export class Workshop extends Sample {
                     visibility: GPUShaderStage.FRAGMENT,
                     sampler: {},
                 },
-                // Task 4.3: remove the light source buffer from the bind group layout
+                // Task 4.4: remove the light source buffer from the bind group layout
             ]
         });
 
@@ -248,7 +255,7 @@ export class Workshop extends Sample {
                 module: shaderModule,
                 entryPoint: 'fragment',
                 targets: [
-                    // Task 4.3: only render to G-Buffer attachments
+                    // Task 4.4: only render to G-Buffer attachments
                     {format: this.gpu.getPreferredCanvasFormat(),},
                     {format: 'rgba16float',},
                     {format: 'rgba16float',},
@@ -282,12 +289,12 @@ export class Workshop extends Sample {
                 {binding: 0, resource: {buffer: this.uniformBuffer}},
                 {binding: 1, resource: this.texture.createView()},
                 {binding: 2, resource: this.sampler},
-                // Task 4.3: remove light source buffer from bindings
+                // Task 4.4: remove light source buffer from bindings
             ]
         });
 
-        // Task 4.2: create color attachments for the render pass creating the G-Buffer
-        // Task 4.3: only render to G-Buffer attachments
+        // Task 4.3: create color attachments for the render pass creating the G-Buffer
+        // Task 4.4: only render to G-Buffer attachments
         const createGBufferColorAttachments = [
             {
                 view: this.gBuffer.albedo.createView(),
@@ -329,8 +336,10 @@ export class Workshop extends Sample {
             backFaceCullingPipeline,
             frontFaceCullingPipeline,
         };
+    }
 
-        // Task 4.3: create a compute pipeline to compute the illumination in our scene in a deferred way
+    async #initDeferredShadingPipeline() {
+        // Task 4.4: create a compute pipeline to compute the illumination in our scene in a deferred way
         const deferredShadingShaderCode = await new Loader().loadText('deferred-shading.wgsl');
         const deferredShadingShaderModule = this.device.createShaderModule({code: deferredShadingShaderCode});
         const deferredShadingWorkGroupSize = {
@@ -349,7 +358,7 @@ export class Workshop extends Sample {
             },
         });
 
-        // Task 4.3: create the bind group for our deferred shading pass
+        // Task 4.4: create the bind group for our deferred shading pass
         const deferredShadingBindGroup = this.device.createBindGroup({
             layout: deferredShadingPipeline.getBindGroupLayout(0),
             entries: [
@@ -365,44 +374,16 @@ export class Workshop extends Sample {
             ]
         });
 
-        // Task 4.3: store deferred shading pipeline data in helper object
+        // Task 4.4: store deferred shading pipeline data in helper object
         this.deferredShadingPipelineData = {
             pipeline: deferredShadingPipeline,
             bindGroup: deferredShadingBindGroup,
             workGroupSize: deferredShadingWorkGroupSize,
         }
+    }
 
-        // Task 4.4: create a compute pipeline to animate the light sources
-        const animateLightsShaderCode = await new Loader().loadText('animate-lights.wgsl');
-        const animateLightsShaderModule = this.device.createShaderModule({code: animateLightsShaderCode});
-        const animateLightsWorkGroupSize = { x: 64 };
-        const animateLightsPipeline = this.device.createComputePipeline({
-            layout: 'auto',
-            compute: {
-                module: animateLightsShaderModule,
-                entryPoint: 'compute',
-                constants: {
-                    WORKGROUP_SIZE: animateLightsWorkGroupSize.x,
-                },
-            }
-        });
-
-        // Task 4.4: create the bind group for the animate lights pass
-        const animateLightsBindGroup = this.device.createBindGroup({
-            layout: animateLightsPipeline.getBindGroupLayout(0),
-            entries: [
-                {binding: 0, resource: {buffer: this.pointlightsBuffer}},
-            ]
-        });
-
-        // Task 4.4: store animation pipeline data in helper object
-        this.animateLightsPipelineData = {
-            pipeline: animateLightsPipeline,
-            bindGroup: animateLightsBindGroup,
-            workGroupSize: animateLightsWorkGroupSize,
-        }
-
-        // Task 4.1: create a pipeline to present our rendered image to the screen
+    async #initPresentToScreenPipeline() {
+        // Task 4.2: create a pipeline to present our rendered image to the screen
         const presentToScreenShaderCode = await new Loader().loadText('present-to-screen.wgsl');
         const presentToScreenShaderModule = this.device.createShaderModule({code: presentToScreenShaderCode});
         const presentToScreenPipeline = this.device.createRenderPipeline({
@@ -424,7 +405,7 @@ export class Workshop extends Sample {
             },
         });
 
-        // Task 4.1: create a color attachment for the final pass presenting our rendered image to the canvas
+        // Task 4.2: create a color attachment for the final pass presenting our rendered image to the canvas
         const presentToScreenColorAttachment = {
             view: null, // Will be set in render()
             clearValue: {r: 0, g: 0, b: 0, a: 1},
@@ -433,7 +414,7 @@ export class Workshop extends Sample {
             storeOp: 'store'
         };
 
-        // Task 4.1: create a bind group for the final pass.
+        // Task 4.2: create a bind group for the final pass.
         //   this uses the texture we rendered to in the first pass and a sampler
         const presentToScreenBindgroup = this.device.createBindGroup({
             layout: presentToScreenPipeline.getBindGroupLayout(0),
@@ -443,7 +424,7 @@ export class Workshop extends Sample {
             ]
         });
 
-        // Task 4.2: create a bind group for each of the G-Buffer textures
+        // Task 4.3: create a bind group for each of the G-Buffer textures
         const albedoBindGroup = this.device.createBindGroup({
             layout: presentToScreenPipeline.getBindGroupLayout(0),
             entries: [
@@ -472,11 +453,43 @@ export class Workshop extends Sample {
             attachments: {
                 colorAttachments: [presentToScreenColorAttachment],
             },
-            // Task 4.2: store all bind groups in pipeline data
+            // Task 4.3: store all bind groups in pipeline data
             renderTextureBindGroup: presentToScreenBindgroup,
             albedoBindGroup,
             positionsBindGroup,
             normalsBindGroup,
+        }
+    }
+
+    async #initAnimateLightsPipeline() {
+        // Task 4.1: create a compute pipeline to animate the light sources
+        const animateLightsShaderCode = await new Loader().loadText('animate-lights.wgsl');
+        const animateLightsShaderModule = this.device.createShaderModule({code: animateLightsShaderCode});
+        const animateLightsWorkGroupSize = { x: 64 };
+        const animateLightsPipeline = this.device.createComputePipeline({
+            layout: 'auto',
+            compute: {
+                module: animateLightsShaderModule,
+                entryPoint: 'compute',
+                constants: {
+                    WORKGROUP_SIZE: animateLightsWorkGroupSize.x,
+                },
+            }
+        });
+
+        // Task 4.1: create the bind group for the animate lights pass
+        const animateLightsBindGroup = this.device.createBindGroup({
+            layout: animateLightsPipeline.getBindGroupLayout(0),
+            entries: [
+                {binding: 0, resource: {buffer: this.pointlightsBuffer}},
+            ]
+        });
+
+        // Task 4.1: store animation pipeline data in helper object
+        this.animateLightsPipelineData = {
+            pipeline: animateLightsPipeline,
+            bindGroup: animateLightsBindGroup,
+            workGroupSize: animateLightsWorkGroupSize,
         }
     }
 }

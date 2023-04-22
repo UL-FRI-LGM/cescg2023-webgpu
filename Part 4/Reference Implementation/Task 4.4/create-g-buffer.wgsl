@@ -19,7 +19,7 @@ struct FragmentInput {
     @location(2) texcoord: vec2f,   // <- texcoords are at location 2
 }
 
-// Task 4.3: only render to G-Buffer render targets
+// Task 4.4: only render to G-Buffer render targets
 struct FragmentOutput {
     @location(0) albedo: vec4f,
     @location(1) position: vec4f,
@@ -40,12 +40,12 @@ struct Uniforms {
     model: mat4x4<f32>, // <- instead of a 2D offset, we now use a transformation matrix for our model
 }
 
-// Task 4.3: remove all lighting related structs
+// Task 4.4: remove all lighting related structs
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 @group(0) @binding(1) var uTexture : texture_2d<f32>;
 @group(0) @binding(2) var uSampler : sampler;
-// Task 4.3: remove light source buffer bind point
+// Task 4.4: remove light source buffer bind point
 
 @vertex
 fn vertex(input : VertexInput) -> VertexOutput {
@@ -63,7 +63,7 @@ fn vertex(input : VertexInput) -> VertexOutput {
 
 @fragment
 fn fragment(input : FragmentInput) -> FragmentOutput {
-    // Task 4.3: only output G-Buffer
+    // Task 4.4: only output G-Buffer
     return FragmentOutput(
         textureSample(uTexture, uSampler, input.texcoord),
         vec4f(input.position, 1.0),

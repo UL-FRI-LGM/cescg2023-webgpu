@@ -19,12 +19,8 @@ struct FragmentInput {
     @location(2) texcoord: vec2f,   // <- texcoords are at location 2
 }
 
-// Task 4.2: add G-Buffer render targets
 struct FragmentOutput {
     @location(0) color: vec4f,
-    @location(1) albedo: vec4f,
-    @location(2) position: vec4f,
-    @location(3) normal: vec4f,
 }
 
 struct Camera {
@@ -133,8 +129,5 @@ fn fragment(input : FragmentInput) -> FragmentOutput {
     }
     return FragmentOutput(
         color,
-        vec4f(albedo, 1.0),
-        vec4f(input.position, 1.0),
-        vec4f(input.normal, 1.0),
     );
 }

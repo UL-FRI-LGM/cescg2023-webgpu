@@ -21,12 +21,11 @@ export class Workshop extends Sample {
 
     key(type, keys) {
         if (type === 'up' && (keys.includes('c') || keys.includes('C'))) {
-            // Task 4.1: use our new helper objects
             this.cullBackFaces = !this.cullBackFaces;
             if (this.cullBackFaces) {
-                this.renderToTexturePipelineData.pipeline = this.renderToTexturePipelineData.backFaceCullingPipeline;
+                this.pipeline = this.backFaceCullingPipeline;
             } else {
-                this.renderToTexturePipelineData.pipeline = this.renderToTexturePipelineData.frontFaceCullingPipeline;
+                this.pipeline = this.frontFaceCullingPipeline;
             }
         }
     }
@@ -44,27 +43,26 @@ export class Workshop extends Sample {
 
         const commandEncoder = this.device.createCommandEncoder();
 
-        // Task 4.1: no longer set the color attachment's view from the current frame's view
-        const renderToTexturePass = commandEncoder.beginRenderPass(
-            this.renderToTexturePipelineData.attachments
+        // Task 4.1: encode the animate lights pass
+        const animateLightsPass = commandEncoder.beginComputePass();
+        animateLightsPass.setPipeline(this.animateLightsPipelineData.pipeline);
+        animateLightsPass.setBindGroup(0, this.animateLightsPipelineData.bindGroup);
+        animateLightsPass.dispatchWorkgroups(
+            Math.ceil(this.numLightSources / this.animateLightsPipelineData.workGroupSize.x)
         );
-        renderToTexturePass.setPipeline(this.renderToTexturePipelineData.pipeline);
-        renderToTexturePass.setBindGroup(0, this.renderToTexturePipelineData.bindGroup);
-        renderToTexturePass.setVertexBuffer(0, this.vertexBuffer);
-        renderToTexturePass.setIndexBuffer(this.indexBuffer, this.model.indexType);
-        renderToTexturePass.drawIndexed(this.model.numIndices);
-        renderToTexturePass.end();
+        animateLightsPass.end();
 
-        // Task 4.1: encode the pipeline rendering to the screen
-        this.presentToScreenPipelineData.attachments.colorAttachments[0].view = this.context.getCurrentTexture().createView();
-        const presentToScreenPass = commandEncoder.beginRenderPass(
-            this.presentToScreenPipelineData.attachments,
-        );
-        presentToScreenPass.setPipeline(this.presentToScreenPipelineData.pipeline);
-        presentToScreenPass.setBindGroup(0, this.presentToScreenPipelineData.bindGroup);
-        // the 6 vertices we are drawing are stored within a constant array in the shader
-        presentToScreenPass.draw(6);
-        presentToScreenPass.end();
+        this.colorAttachment.view = this.context.getCurrentTexture().createView();
+        const renderPass = commandEncoder.beginRenderPass({
+            colorAttachments: [this.colorAttachment],
+            depthStencilAttachment: this.depthStencilAttachment,
+        });
+        renderPass.setPipeline(this.pipeline);
+        renderPass.setBindGroup(0, this.bindGroup);
+        renderPass.setVertexBuffer(0, this.vertexBuffer);
+        renderPass.setIndexBuffer(this.indexBuffer, this.model.indexType);
+        renderPass.drawIndexed(this.model.numIndices);
+        renderPass.end();
 
         this.device.queue.submit([commandEncoder.finish()]);
     }
@@ -109,14 +107,15 @@ export class Workshop extends Sample {
 
         // Create light source buffer
         const pointLightStrideInElements = 8; // 3 (position) + 1 (radius) + 3 (color) + 1 (padding)
-        const numLightSources = 20;
+        // Task 4.1: store number of light sources in the Sample
+        this.numLightSources = 20;
         this.pointlightsBuffer = this.device.createBuffer({
-            size: Float32Array.BYTES_PER_ELEMENT * pointLightStrideInElements * numLightSources,
+            size: Float32Array.BYTES_PER_ELEMENT * pointLightStrideInElements * this.numLightSources,
             usage: GPUBufferUsage.STORAGE,
             mappedAtCreation: true,
         });
         const pointLightsBufferRange = new Float32Array(this.pointlightsBuffer.getMappedRange());
-        for (let i = 0; i < numLightSources; ++i) {
+        for (let i = 0; i < this.numLightSources; ++i) {
             const position = vec3.fromValues(
                 Math.random() * 2 - 1,
                 Math.random() * 2 - 1,
@@ -134,21 +133,42 @@ export class Workshop extends Sample {
             pointLightsBufferRange.set(color, offset + 4);
         }
         this.pointlightsBuffer.unmap();
+    }
 
-        // Task 4.1: create an output texture for the rendered image
-        this.renderTexture = this.device.createTexture({
-            size: [this.canvas.width, this.canvas.height],  // we'll keep the canvases dimensions for simplicity
-            format: this.gpu.getPreferredCanvasFormat(),    // we'll keep the preferred canvas format for simplicity
-            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+    async #initAnimateLightsPipeline() {
+        // Task 4.1: create a compute pipeline to animate the light sources
+        const animateLightsShaderCode = await new Loader().loadText('animate-lights.wgsl');
+        const animateLightsShaderModule = this.device.createShaderModule({code: animateLightsShaderCode});
+        const animateLightsWorkGroupSize = { x: 64 };
+        const animateLightsPipeline = this.device.createComputePipeline({
+            layout: 'auto',
+            compute: {
+                module: animateLightsShaderModule,
+                entryPoint: 'compute',
+                constants: {
+                    WORKGROUP_SIZE: animateLightsWorkGroupSize.x,
+                },
+            }
         });
+
+        // Task 4.1: create the bind group for the animate lights pass
+        const animateLightsBindGroup = this.device.createBindGroup({
+            layout: animateLightsPipeline.getBindGroupLayout(0),
+            entries: [
+                {binding: 0, resource: {buffer: this.pointlightsBuffer}},
+            ]
+        });
+
+        // Task 4.1: store animation pipeline data in helper object
+        this.animateLightsPipelineData = {
+            pipeline: animateLightsPipeline,
+            bindGroup: animateLightsBindGroup,
+            workGroupSize: animateLightsWorkGroupSize,
+        }
     }
 
     async #initPipelines() {
-        // Task 4.1: split our previous pipeline into two pipelines: one that renders to a texture and another that
-        //  takes the rendered texture as an input and outputs it to the canvas
-        //  To avoid confusion, we pack each pipeline into helper objects
-
-        const code = await new Loader().loadText('render-to-texture.wgsl');
+        const code = await new Loader().loadText('shader.wgsl');
         const shaderModule = this.device.createShaderModule({code});
 
         const bindGroupLayout = this.device.createBindGroupLayout({
@@ -156,6 +176,7 @@ export class Workshop extends Sample {
                 // uniform buffer
                 {
                     binding: 0,
+                    // Task 3.6: make the uniform buffer visible in the fragment stage
                     visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
                     buffer: {},
                 },
@@ -171,6 +192,7 @@ export class Workshop extends Sample {
                     visibility: GPUShaderStage.FRAGMENT,
                     sampler: {},
                 },
+                // Task 3.3: add the storage buffer to our explicitly defined bind group layout
                 // storage buffer
                 {
                     binding: 3,
@@ -211,14 +233,14 @@ export class Workshop extends Sample {
             }
         }
 
-        const backFaceCullingPipeline = this.device.createRenderPipeline({
+        this.backFaceCullingPipeline = this.device.createRenderPipeline({
             ...pipelineDescriptorBase,
             primitive: {
                 cullMode: 'back',
             }
         });
 
-        const frontFaceCullingPipeline = this.device.createRenderPipeline({
+        this.frontFaceCullingPipeline = this.device.createRenderPipeline({
             ...pipelineDescriptorBase,
             primitive: {
                 cullMode: 'front',
@@ -228,68 +250,18 @@ export class Workshop extends Sample {
         this.pipeline = this.backFaceCullingPipeline;
 
         // Prepare bind group
-        const renderToTextureBindGroup = this.device.createBindGroup({
+        this.bindGroup = this.device.createBindGroup({
             layout: bindGroupLayout,
             entries: [
                 {binding: 0, resource: {buffer: this.uniformBuffer}},
                 {binding: 1, resource: this.texture.createView()},
                 {binding: 2, resource: this.sampler},
+                // Task 3.3: add storage buffer binding to bind group
                 {binding: 3, resource: {buffer: this.pointlightsBuffer}},
             ]
         });
 
-        // Task 4.1: set the view for our render to texture pass to our render texture
-        const renderToTextureColorAttachment = {
-            view: this.renderTexture.createView(),
-            clearValue: {r: 0, g: 0, b: 0, a: 1},
-            loadOp: 'clear',
-            loadValue: {r: 0, g: 0, b: 0, a: 1},
-            storeOp: 'store'
-        };
-
-        const renderToTextureDepthStencilAttachment = {
-            view: this.depthTexture.createView(),
-            depthClearValue: 1.0,
-            depthLoadOp: 'clear',
-            depthStoreOp: 'discard',
-        };
-
-        // Task 4.1: store pipeline data in helper object
-        this.renderToTexturePipelineData = {
-            pipeline: backFaceCullingPipeline,
-            bindGroup: renderToTextureBindGroup,
-            attachments: {
-                colorAttachments: [renderToTextureColorAttachment],
-                depthStencilAttachment: renderToTextureDepthStencilAttachment,
-            },
-            backFaceCullingPipeline,
-            frontFaceCullingPipeline,
-        };
-
-        // Task 4.1: create a pipeline to present our rendered image to the screen
-        const presentToScreenShaderCode = await new Loader().loadText('present-to-screen.wgsl');
-        const presentToScreenShaderModule = this.device.createShaderModule({code: presentToScreenShaderCode});
-        const presentToScreenPipeline = this.device.createRenderPipeline({
-            layout: 'auto',
-            vertex: {
-                module: presentToScreenShaderModule,
-                entryPoint: 'vertex',
-                // the vertices and texture coordinates are stored directly in the shader and accessed via their index
-                // so, we don't have to pass any vertex buffers here
-            },
-            fragment: {
-                module: presentToScreenShaderModule,
-                entryPoint: 'fragment',
-                targets: [
-                    {
-                        format: this.gpu.getPreferredCanvasFormat()
-                    }
-                ],
-            },
-        });
-
-        // Task 4.1: create a color attachment for the final pass presenting our rendered image to the canvas
-        const presentToScreenColorAttachment = {
+        this.colorAttachment = {
             view: null, // Will be set in render()
             clearValue: {r: 0, g: 0, b: 0, a: 1},
             loadOp: 'clear',
@@ -297,22 +269,13 @@ export class Workshop extends Sample {
             storeOp: 'store'
         };
 
-        // Task 4.1: create a bind group for the final pass.
-        //   this uses the texture we rendered to in the first pass and a sampler
-        const presentToScreenBindgroup = this.device.createBindGroup({
-            layout: presentToScreenPipeline.getBindGroupLayout(0),
-            entries: [
-                {binding: 0, resource: this.renderTexture.createView()},
-                {binding: 1, resource: this.sampler},
-            ]
-        });
+        this.depthStencilAttachment = {
+            view: this.depthTexture.createView(),
+            depthClearValue: 1.0,
+            depthLoadOp: 'clear',
+            depthStoreOp: 'discard',
+        };
 
-        this.presentToScreenPipelineData = {
-            pipeline: presentToScreenPipeline,
-            bindGroup: presentToScreenBindgroup,
-            attachments: {
-                colorAttachments: [presentToScreenColorAttachment],
-            }
-        }
+        await this.#initAnimateLightsPipeline();
     }
 }
