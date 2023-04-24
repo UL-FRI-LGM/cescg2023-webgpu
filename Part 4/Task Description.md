@@ -400,16 +400,16 @@ this.createGBufferPipelineData = {
 * Choose one of the bind groups as the default bind group (we'll stick to the texture used in the previous task in our reference implementation).
 * Finally, add some user inputs to switch between the different attachments. E.g., using the `key` method of our `Workshop` class, to react to keyboard events:
 ```js
-key(type, keys) {
+key(type, key) {
     if (type === 'up') {
         // ...
-        if (keys.includes('a') || keys.includes('A')) {
+        if (key.toLowerCase() === 'a') {
             this.presentToScreenPipelineData.bindGroup = this.presentToScreenPipelineData.albedoBindGroup;
-        } else if (keys.includes('p') || keys.includes('P')) {
+        } else if (key.toLowerCase() === 'p') {
             this.presentToScreenPipelineData.bindGroup = this.presentToScreenPipelineData.positionsBindGroup;
-        } else if (keys.includes('n') || keys.includes('N')) {
+        } else if (key.toLowerCase() === 'n') {
             this.presentToScreenPipelineData.bindGroup = this.presentToScreenPipelineData.normalsBindGroup;
-        } else if (keys.includes('r') || keys.includes('R')) {
+        } else if (key.toLowerCase() === 'r') {
             this.presentToScreenPipelineData.bindGroup = this.presentToScreenPipelineData.renderTextureBindGroup;
         }
     }

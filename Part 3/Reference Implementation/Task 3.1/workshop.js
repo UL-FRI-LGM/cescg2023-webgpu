@@ -18,8 +18,8 @@ export class Workshop extends Sample {
         await this.#initPipelines();
     }
 
-    key(type, keys) {
-        if (type === 'up' && (keys.includes('c') || keys.includes('C'))) {
+    key(type, key) {
+        if (type === 'up' && key.toLowerCase() === 'c') {
             this.cullBackFaces = !this.cullBackFaces;
             if (this.cullBackFaces) {
                 this.pipeline = this.backFaceCullingPipeline;

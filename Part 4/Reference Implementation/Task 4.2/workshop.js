@@ -19,8 +19,8 @@ export class Workshop extends Sample {
         await this.#initPipelines();
     }
 
-    key(type, keys) {
-        if (type === 'up' && (keys.includes('c') || keys.includes('C'))) {
+    key(type, key) {
+        if (type === 'up' && key.toLowerCase() === 'c') {
             // Task 4.2: use our new helper objects
             this.cullBackFaces = !this.cullBackFaces;
             if (this.cullBackFaces) {

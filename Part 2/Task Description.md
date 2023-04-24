@@ -14,7 +14,7 @@ It has the following two lifecycle functions that are called by its static `run`
 * `async init() {}`: this is called at initialization time and the place where we'll load our shaders, and set up textures, buffers and pipelines.
 * `render(deltaTime = 0.0) {}`: this is called once per frame. Here, we'll update uniform buffers, and encode render and compute passes.
   
-To react to keyboard inputs, the `Sample` class provides the `key(type, keys)` convenience function.
+To react to keyboard inputs, the `Sample` class provides the `key(type, key)` convenience function.
 
 The `Sample` class also stores the following objects to provide easy access to the GPU and canvas:
 * `adapter`: the [GPUAdapter](https://www.w3.org/TR/webgpu/#gpuadapter)
@@ -417,8 +417,8 @@ this.backFaceCullingPipeline = this.device.createRenderPipeline({
 * In `#initPipelines`, store one pipeline as the default pipeline in the `Workshop` instance.
 * Switch between pipelines on keyboard inputs, e.g., using the `key` method of our `Workshop` class:
 ```js
-key(type, keys) {
-    if (type === 'up' && (keys.includes('c') || keys.includes('C'))) {
+key(type, key) {
+    if (type === 'up' && key.toLowerCase() === 'c') {
         this.cullBackFaces = !this.cullBackFaces;
         if (this.cullBackFaces) {
             this.pipeline = this.backFaceCullingPipeline;

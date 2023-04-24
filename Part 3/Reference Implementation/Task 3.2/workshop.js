@@ -19,8 +19,8 @@ export class Workshop extends Sample {
     }
 
     // Task 2.5: add a keyboard input to switch between culling modes
-    key(type, keys) {
-        if (type === 'up' && (keys.includes('c') || keys.includes('C'))) {
+    key(type, key) {
+        if (type === 'up' && key.toLowerCase() === 'c') {
             this.cullBackFaces = !this.cullBackFaces;
             if (this.cullBackFaces) {
                 this.pipeline = this.backFaceCullingPipeline;

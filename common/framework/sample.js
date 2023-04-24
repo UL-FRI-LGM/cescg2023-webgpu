@@ -25,7 +25,6 @@ export class Sample {
         this.gui = gui;
         this.#animating = false;
 
-        // todo: add pointerevent handlers or remove Sample.mouse function
         this.#eventHandlers = {
             'keydown': e => this.key('down', e.key),
             'keyup': e => this.key('up', e.key),
@@ -49,23 +48,12 @@ export class Sample {
     resize(width, height) {
     }
 
-    // todo: either implement this or remove it
-    /**
-     * Override me! Handle mouse interactions
-     * @param type "down" | "up" | "move" | "click"
-     * @param button "left" | "middle" | "right"
-     * @param x number - Mouse cursor X position on the WebGPU canvas
-     * @param y number - Mouse cursor Y position on the WebGPU canvas
-     */
-    mouse(type, button, x, y) {
-    }
-
     /**
      * Override me! Handle keyboard interactions
      * @param type "down" | "up"
-     * @param keys string[] - A list with the values of all the keys pressed, matching KeyboardEvent.key (see https://www.toptal.com/developers/keycode/for/a)
+     * @param key string - The key that has been pressed or released, matching KeyboardEvent.key (see https://www.toptal.com/developers/keycode)
      */
-    key(type, keys) {
+    key(type, key) {
     }
 
     static isAnimatedSample() {
