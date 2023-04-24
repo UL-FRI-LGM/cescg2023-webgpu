@@ -14,14 +14,16 @@ export class Sample {
      * @param device WebGPU device
      * @param context WebGPU context of a HTMLCanvasElement
      * @param canvas {HTMLCanvasElement} Canvas element that will be used to trigger key events
+     * @param gui {GUI | null} The GUI of dat.GUI (or null)
      */
-    constructor(gpu, adapter, device, context, canvas) {
+    constructor(gpu, adapter, device, context, canvas, gui = null) {
         this.gpu = gpu;
         this.adapter = adapter;
         this.device = device;
         this.context = context;
         this.canvas = canvas;
         this.#animating = false;
+        this.gui = gui;
 
         this.#eventHandlers = {
             'keydown': e => this.key('down', e.key),
