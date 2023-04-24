@@ -12,7 +12,6 @@ export class Loader {
         this.basePath = basePath;
     }
 
-    // TODO: Use URL instead
     async loadText(path) {
         return (await fetch(joinPaths([this.basePath, path]), {
             method: "GET",
@@ -23,10 +22,9 @@ export class Loader {
     }
 
     async loadImage(path) {
-        const img = document.createElement('img');
-        img.src = joinPaths([this.basePath, path]);
-        await img.decode();
-        return await createImageBitmap(img);
+        const blob = await fetch(joinPaths([this.basePath, path]))
+            .then(response => response.blob());
+        return await createImageBitmap(blob);
     }
 
     async loadModel(path) {
@@ -83,7 +81,7 @@ function parseObj(objStr) {
         .map(line => line.trim().split(/\s+/))
         .flatMap(face => triangulate(face));
 
-    const vertices = [];
+    const positions = [];
     const normals = [];
     const texcoords = [];
     const indices = [];
@@ -98,47 +96,14 @@ function parseObj(objStr) {
             indices.push(cacheLength);
             const [,vIndex,,vtIndex,,vnIndex] = [...id.match(indicesRegex)]
                 .map(entry => Number(entry) - 1);
-            vertices.push(...vData[vIndex]);
+            positions.push(...vData[vIndex]);
             normals.push(...vnData[vnIndex]);
             texcoords.push(...vtData[vtIndex]);
             cacheLength++;
         }
     }
 
-    console.log({vertices, normals, texcoords, indices});
-    return { vertices, normals, texcoords, indices };
-}
-
-function parseObj2(objStr) {
-    const lines = objStr.split('\n');
-
-    const verticesRegex = /v\s+(\S+)\s+(\S+)\s+(\S+)\s*/;
-    const vertices = lines
-        .filter(line => verticesRegex.test(line))
-        .flatMap(line => [...line.match(verticesRegex)].slice(1))
-        .map(entry => Number(entry));
-
-    const normalsRegex = /vn\s+(\S+)\s+(\S+)\s+(\S+)\s*/;
-    const normals = lines
-        .filter(line => normalsRegex.test(line))
-        .flatMap(line => [...line.match(normalsRegex)].slice(1))
-        .map(entry => Number(entry));
-
-    const texcoordsRegex = /vt\s+(\S+)\s+(\S+)\s*/;
-    const texcoords = lines
-        .filter(line => texcoordsRegex.test(line))
-        .flatMap(line => [...line.match(texcoordsRegex)].slice(1))
-        .map(entry => Number(entry));
-
-    const indicesRegex = /f\s+(\S+)\s+(\S+)\s+(\S+)\s*/;
-    const indices = lines
-        .filter(line => indicesRegex.test(line))
-        .flatMap(line => [...line.match(indicesRegex)].slice(1))
-        .map(entry => Number(entry))
-        .map(entry => entry - 1);
-
-    console.log({vertices, normals, texcoords, indices});
-    return { vertices, normals, texcoords, indices };
+    return { positions, normals, texcoords, indices };
 }
 
 function parsePly(plyStr) {
@@ -164,7 +129,7 @@ function parsePly(plyStr) {
 
     // assume vertices are of format (x, y, z, nx, ny, nz, s, t)
     const parsedVertices = vertexData.map(line => line.split(' ').map(entry => Number(entry)));
-    const vertices = parsedVertices.map(line => line.slice(0, 3)).flat();
+    const positions = parsedVertices.map(line => line.slice(0, 3)).flat();
     const normals = parsedVertices.map(line => line.slice(3, 6)).flat();
     const texcoords = parsedVertices.map(line => line.slice(6, 8)).flat();
 
@@ -172,5 +137,5 @@ function parsePly(plyStr) {
     const parsedFaces = faceData.map(line => line.split(' ').map(entry => Number(entry)));
     const indices = parsedFaces.map(line => line.slice(1, 4)).flat();
 
-    return { vertices, normals, texcoords, indices};
+    return { positions, normals, texcoords, indices};
 }

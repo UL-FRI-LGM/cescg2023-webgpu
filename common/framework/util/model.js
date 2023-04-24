@@ -29,6 +29,10 @@ export class Model {
         this.#model = model;
     }
 
+    get transform() {
+        return this.#model.getComponentOfType(Transform);
+    }
+
     get modelMatrix() {
         return this.#model.getComponentOfType(Transform).matrix;
     }

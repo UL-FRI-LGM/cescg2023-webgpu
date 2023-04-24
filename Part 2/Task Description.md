@@ -108,9 +108,33 @@ We kick off our render loop by running the `Workshop` class from our HTML file:
 Now that we're familiar with the lifecycle methods of our framework, we'll make the step into 3D!
 The first thing we have to do, is adding a camera to both our JavaScript file and our shader.
 
+In computer graphics, a camera is usually used to perform two important transformations:
+* The transformation of objects from a common world space to its own space - often called view space - via its view matrix.
+  You can imagine that as a change of perspective.
+* The transformation of objects in this view space to clip space via its projection matrix.
+
+In this task we'll have our first encounter with WGSL's [alignment and structure member layout rules](https://www.w3.org/TR/WGSL/#alignment-and-size).
+Because of how alignment of structure members works in WGSL, determining the actual size of a struct, or the offset of a
+struct member can be a bit unintuitive. As a rule of thumb, you should not run into any troubles when using only `vec4`s,
+`mat4x3`s, or `mat4x4`s. In this workshop, we won't go into detail on these rules and rather give you the offsets you
+need to complete the tasks directly, but if you're interested or run into alignment issues you can use [this webpage to visualize your struct's memory layout (copy your structs to the editor on the left and press the 'process' button)](https://webgpufundamentals.org/webgpu/lessons/resources/wgsl-offset-computer.html#x=5d000001004401000000000000003d88886237289d13c4320e1a9be64fe4a78fb96670092e7293afb01bb39d4ef043f85b8441ccb0c4f3bec387b0210178c493391e81f8e0280b1ea96dad00327381a4ea82cb963b352506ee858336af7fb0a2b5383499ac0ab4678de4a030f0309b1f2607cfdb712f5e1947bdb0d62e8806a9b310a5cad8d268b67d720b0cad38eb4343ffd8dacbfd9ff63459a0c380e0bff67af4e9a55921a83f2222a0d98fea36dd8726c396bfc3a2e0e53ffeeb39ff)
+
 We'll start with the shader:
-* Add a `Camera` struct consisting of two `mat4x4<f32>`, the camera's `view` and `projection` matrices.
-* Add a member of type `Camera` to the `Uniforms` struct. **Note that with two 4x4 matrices and a single 2D vector, we enter the realm of [alignment and structure member layout rules](https://www.w3.org/TR/WGSL/#alignment-and-size) because of which our `vec2` has an implicit size of a `vec4`.**
+* Add a `Camera` struct consisting of two `mat4x4<f32>`, the camera's `view` and `projection` matrices:
+```wgsl
+struct Camera {
+    view: mat4x4<f32>,
+    projection: mat4x4<f32>,
+}
+```
+* Add a member of type `Camera` to the `Uniforms` struct.
+  **Note that with two 4x4 matrices and a single 2D vector, we enter the realm of [alignment and structure member layout rules](https://www.w3.org/TR/WGSL/#alignment-and-size) because of which our `vec2` has an implicit size of a `vec4`:**
+```wgsl
+struct Uniforms {
+    camera: Camera,
+    translation: vec2f, // + 8 bytes as implicit padding
+}
+```
 * In the vertex stage of the shader, use the camera's matrices to transform the vertex position to clip space, e.g., like so:
 ```wgsl
 fn vertex(input: VertexInput) -> VertexOutput {

@@ -25,9 +25,7 @@ struct Camera {
 struct Uniforms {
     // Task 2.1: add our camera's view and projection matrices to our Uniforms struct
     camera: Camera,
-    // Task 2.1: due to WGSL's structure member layout rules, the Uniform struct has an implicit 8 bytes of extra padding
-    //   we can make that explicit by adding the @size attribute
-    @size(16) translation: vec2f,
+    translation: vec2f,
 }
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
