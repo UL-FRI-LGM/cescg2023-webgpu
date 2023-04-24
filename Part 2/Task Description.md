@@ -284,7 +284,9 @@ We don't see any optical changes in this task, but we've set the stage for 3D ob
 Now that we have prepared everything to render 3D models, the time has finally come to do so:
 * Import the `Model` class from `./common/engine/util/model.js`. The `Model` class has some helper functions to create vertex and index buffers and get meta data such as the number of vertex indices.
 * Import the `Vertex` helper class from `./common/engine/core/mesh.js`.
-* In `init`, create an instance of the `Model` class from a 3D model we'll load using the ominous `assetLoader` lurking around our `init` function:
+* In `init`, create an instance of the `Model` class from a 3D model we'll load using the ominous `assetLoader` lurking around our `init` function.
+  In our reference implementation, we'll use the Stanford bunny, but you can also use any other model in the `common/assets/models` folder.
+  In `common/framework/utils/test-models.js`, you can also find some convenience functions to load each model and its corresponding texture directly.
 ```js
 async init() {
     this.model = new Model(await this.assetLoader.loadModel('models/bunny.json'));
