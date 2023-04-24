@@ -32,8 +32,8 @@ html, body {
     bottom: 0;
     left: 0;
 
-    background: #006bac; /* TU blue */
-    color: white;
+    background: #e9edee;
+    color: black;
 }
 
 a {
@@ -58,6 +58,7 @@ select {
     gap: 1em;
     padding-left: 1em;
     padding-right: 1em;
+	border-bottom: 1px solid black;
 }
 #bar > * {
     padding-top: 0.5em;
@@ -69,7 +70,7 @@ select {
 }
 #bar > span:first-of-type {
     padding-right: 1em;
-    border-right: 1px solid #e4eef4;
+	margin-right: auto;
 }
 #bar > span > * {
     display: block;
@@ -90,10 +91,15 @@ select {
 }
 
 #viewport > * {
-    background: #c32d9b; /* E193-02 magenta, a.k.a. CG magenta */
+    background: #white;
     position: absolute;
     width: 100%;
     height: 100%;
+	
+	background-color: #ffffff;
+	opacity: 0.8;
+	background-image: radial-gradient(#000000 2px, #ffffff 2px);
+	background-size: 40px 40px;
 }
 
 #webGpuCanvas {
