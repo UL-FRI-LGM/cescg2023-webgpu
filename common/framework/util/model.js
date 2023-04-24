@@ -5,6 +5,10 @@ import { Node } from '../core/node.js';
 import { Transform } from '../core/transform.js';
 import { Mesh, Vertex } from '../core/mesh.js';
 
+/**
+ * The representation of a 3D model
+ * Keeps track of the mesh (with its vertices and indices), a Transform (to create a model matrix), and utility functions to manage GPU buffers for vertices and indices
+ */
 export class Model {
     #model;
 

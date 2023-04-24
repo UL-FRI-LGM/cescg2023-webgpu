@@ -1,5 +1,8 @@
 import { vec2, vec3 } from '../../../lib/gl-matrix-module.js';
 
+/**
+ * One vertex containing a position, normal, and texture coordinates
+ */
 export class Vertex {
     #position;
     #normal;
@@ -55,6 +58,9 @@ export class Vertex {
     }
 }
 
+/**
+ * Axis-Aligned Bounding Box
+ */
 export class AABB {
     #min;
     #max;
@@ -84,6 +90,10 @@ export class AABB {
     }
 }
 
+/**
+ * A mesh containing a list of vertices and indices
+ * A bounding box is automatically calculated
+ */
 export class Mesh {
     #vertices;
     #indices;

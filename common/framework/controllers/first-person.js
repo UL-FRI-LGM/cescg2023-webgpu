@@ -3,6 +3,10 @@
 import { quat, vec3 } from '../../../lib/gl-matrix-module.js';
 import { Transform } from '../core/transform.js';
 
+/**
+ * The controller that interfaces mouse interactions with a Node (e.g. Camera)
+ * It moves the camera on WASD and rotates it on mouse movement
+ */
 export class FirstPersonController {
     #node;
     #domElement;
@@ -24,6 +28,15 @@ export class FirstPersonController {
     #clickHandler;
     #pointerLockChangeHandler;
 
+    /**
+     * @param node {Node} The Node that will be controlled
+     * @param domElement {HTMLElement} The dom element that will trigger mouse events
+     * @param velocity {number}
+     * @param acceleration {number}
+     * @param maxSpeed {number}
+     * @param decay {number} How fast the speed decreases when no key is being pressed
+     * @param pointerSensitivity {number}
+     */
     constructor(node, domElement, {
         velocity = vec3.fromValues(0, 0, 0),
         acceleration = 20,

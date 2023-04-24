@@ -10,6 +10,15 @@ export class Camera {
     #near;
     #far;
 
+    /**
+     * Constructs a perspective or orthographic camera
+     * @param orthographic {boolean} Whether this camera is orthographic. If false, this camera will be perspective
+     * @param aspect {number} The aspect ratio (width / height)
+     * @param fovY {number} (only used if 'orthographic'=false) The field-of-view
+     * @param halfY (only used if 'orthographic'=false) The top-bound of the frustum. The bottom-bound will be '-halfY', and the left- and right-bounds will be calculated using 'aspect'
+     * @param near The near-bound of the frustum
+     * @param far The far-bound of the frustum
+     */
     constructor({
                     orthographic = false,
                     aspect = 1,

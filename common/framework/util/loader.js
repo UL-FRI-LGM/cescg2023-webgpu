@@ -4,12 +4,15 @@ function joinPaths(parts, seperator = '/') {
     return parts.join(seperator).replace(new RegExp(seperator+'{1,}', 'g'), seperator);
 }
 
+/**
+ * A loader to load resources (text, images, shader code, and some formats of 3D models) from the server
+ */
 export class Loader {
     constructor({basePath = './'} = {}) {
         this.basePath = basePath;
     }
 
-    // use URL instead
+    // TODO: Use URL instead
     async loadText(path) {
         return (await fetch(joinPaths([this.basePath, path]), {
             method: "GET",
@@ -40,45 +43,6 @@ export class Loader {
             case 'ply': return parsePly(text);
             case 'json': return JSON.parse(text);
             default: throw new Error(`Unexpected model extension '${extension}'`);
-        }
-    }
-
-    static async loadText(path) {
-        return (await fetch(path, {
-            method: "GET",
-            headers: {
-                "Content-Type": "text/plain"
-            }
-        })).text();
-    }
-
-    static async loadShaderCode(path) {
-        return Loader.loadText("res/shaders/" + path);
-    }
-
-    static async loadImage(path) {
-        const img = document.createElement("img");
-        img.src = "res/images/" + path;
-        await img.decode();
-        return await createImageBitmap(img);
-    }
-
-    static async loadModel(path) {
-        const extension = path.split(".").pop();
-
-        const acceptedExtensions = ["obj", "ply", "json"];
-        if (!acceptedExtensions.includes(extension)) {
-            console.error("Unexpected model extension '" + extension + "'");
-            return null;
-        }
-
-        const text = await Loader.loadText("res/models/" + path);
-
-        switch (extension) {
-            case "obj": return parseObj(text);
-            case "ply": return parsePly(text);
-            case "json": return JSON.parse(text);
-            default: return null;
         }
     }
 }

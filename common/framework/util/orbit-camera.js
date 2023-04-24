@@ -9,6 +9,10 @@ import { OrbitController } from '../controllers/orbit.js';
 export class OrbitCamera {
     #camera;
 
+    /**
+     * Constructs an OrbitCamera, that will orbit around the origin (0,0,0) with mouse drag
+     * @param canvas {HTMLCanvasElement} The canvas that will trigger mouse events
+     */
     constructor(canvas) {
         const camera = new Node();
         camera.addComponent(new Transform());

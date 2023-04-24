@@ -9,20 +9,18 @@ export class Sample {
 
     /**
      * Overriding this is not recommended
-     * @param gui The main workspace (a GUI.Workspace), useful to add customizable parameters through windows in nanogui fashion
-     * @param gpu
+     * @param gpu WebGPU gpu
      * @param adapter WebGPU adapter
      * @param device WebGPU device
-     * @param context WebGPU context of HTMLCanvasElement
-     * @param canvas
+     * @param context WebGPU context of a HTMLCanvasElement
+     * @param canvas {HTMLCanvasElement} Canvas element that will be used to trigger key events
      */
-    constructor(gpu, adapter, device, context, canvas, gui=null) {
+    constructor(gpu, adapter, device, context, canvas) {
         this.gpu = gpu;
         this.adapter = adapter;
         this.device = device;
         this.context = context;
         this.canvas = canvas;
-        this.gui = gui;
         this.#animating = false;
 
         this.#eventHandlers = {
@@ -36,35 +34,55 @@ export class Sample {
 
     // Override the following methods in subclasses --------------------------------------------------------------------
 
-    /** Override me! */
+    /**
+     * Override me!
+     * @returns {Promise<void>}
+     */
     async init() {
     }
 
-    /** Override me! */
+    /**
+     * Override me!
+     * @param deltaTime {number}
+     */
     render(deltaTime = 0.0) {
     }
 
-    /** Override me! */
+    /**
+     * Override me!
+     * @param width {number}
+     * @param height {number}
+     */
     resize(width, height) {
     }
 
     /**
      * Override me! Handle keyboard interactions
-     * @param type "down" | "up"
-     * @param key string - The key that has been pressed or released, matching KeyboardEvent.key (see https://www.toptal.com/developers/keycode)
+     * @param type {'down'|'up'}
+     * @param key {string} The key that has been pressed or released, matching KeyboardEvent.key (see https://www.toptal.com/developers/keycode)
      */
     key(type, key) {
     }
 
+    // Call the following methods in subclasses or elsewhere ------------------------------------------------------------
+
+    /**
+     * @returns {boolean} Whether this sample is animated
+     */
     static isAnimatedSample() {
         return true;
     }
 
-    // Call the following methods in subclasses or elsewhere ------------------------------------------------------------
+    /**
+     * @returns {string} The name of this Sample
+     */
     get name() {
         return this.constructor.name;
     }
 
+    /**
+     * Runs the render loop until stop() is called
+     */
     animate() {
         if (this.#animating) return;
         this.#animating = true;
@@ -85,6 +103,9 @@ export class Sample {
         update();
     }
 
+    /**
+     * Stops the render loop
+     */
     stop() {
         this.#animating = false;
         if (this.#animationFrameRequest !== null) {
@@ -96,6 +117,12 @@ export class Sample {
         }
     }
 
+    /**
+     * Constructs this sample and animates it if isAnimatedSample() returns true
+     * @param canvas {HTMLCanvasElement} The canvas to render onto and to trigger key events
+     * @param guiDiv {HTMLElement | null} The div that will contain the GUI elements
+     * @returns {Promise<void>}
+     */
     static async run(canvas, guiDiv = null) {
         // Initialize WebGPU
         const gpu = navigator.gpu;

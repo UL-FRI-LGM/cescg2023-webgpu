@@ -2,6 +2,9 @@
 
 import { vec3, mat4, quat } from '../../../lib/gl-matrix-module.js';
 
+/**
+ * A transform containing a position, rotation, and scale
+ */
 export class Transform {
     constructor({
                     rotation = quat.fromValues(0, 0, 0, 1),

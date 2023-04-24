@@ -3,6 +3,11 @@
 import { quat, vec3 } from '../../../lib/gl-matrix-module.js';
 import { Transform } from '../core/transform.js';
 
+/**
+ * The controller that interfaces mouse interactions with a Node (e.g. Camera)
+ * It rotates the Node around the origin at a constant distance on mouse drag
+ * On mouse wheel, it changes the distance from the origin
+ */
 export class OrbitController {
     #node;
     #domElement;
@@ -19,6 +24,12 @@ export class OrbitController {
     #pointermoveHandler;
     #wheelHandler;
 
+    /**
+     * @param node {Node} The Node that will be controlled
+     * @param domElement {HTMLElement} The dom element that will trigger mouse events
+     * @param moveSensitivity {number}
+     * @param zoomSensitivity {numger}
+     */
     constructor(node, domElement, {moveSensitivity = 0.004, zoomSensitivity = 0.002} = {}) {
         this.#node = node;
         this.#domElement = domElement;

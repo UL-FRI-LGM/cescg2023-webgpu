@@ -1,5 +1,8 @@
 'use strict';
 
+/**
+ * A node of the objects-tree of a scene
+ */
 export class Node {
     #children;
     #parent;
