@@ -14,13 +14,13 @@ export class Workshop extends Sample {
         // Task 2.1: add a user-controlled camera
         this.camera = new OrbitCamera(this.canvas);
 
-        this.offset = {
+        this.translation = {
             x: 0,
             y: 0,
         }
         const gui = new GUI();
-        gui.add(this.offset, 'x', -1, 1);
-        gui.add(this.offset, 'y', -1, 1);
+        gui.add(this.translation, 'x', -1, 1);
+        gui.add(this.translation, 'y', -1, 1);
 
         await this.#initResources();
         await this.#initPipelines();
@@ -34,7 +34,7 @@ export class Workshop extends Sample {
         const uniformArray = new Float32Array([
             ...this.camera.view,
             ...this.camera.projection,
-            this.offset.x, this.offset.y, 0, 0
+            this.translation.x, this.translation.y, 0, 0
         ]);
         this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformArray);
 

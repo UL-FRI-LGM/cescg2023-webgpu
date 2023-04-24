@@ -36,9 +36,6 @@ export class Workshop extends Sample {
     render() {
         this.camera.update();
 
-
-        console.log(this.camera.position);
-
         const uniformArray = new Float32Array([
             // Task 3.6: add the camera's position (including one float for padding) to our uniform buffer
             ...this.camera.position, 0.0,

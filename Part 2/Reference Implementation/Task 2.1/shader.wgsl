@@ -25,7 +25,9 @@ struct Camera {
 struct Uniforms {
     // Task 2.1: add our camera's view and projection matrices to our Uniforms struct
     camera: Camera,
-    offset: vec2f,
+    // Task 2.1: due to WGSL's structure member layout rules, the Uniform struct has an implicit 8 bytes of extra padding
+    //   we can make that explicit by adding the @size attribute
+    @size(16) translation: vec2f,
 }
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
@@ -34,7 +36,7 @@ struct Uniforms {
 
 @vertex
 fn vertex(input : VertexInput) -> VertexOutput {
-    let position = vec4f(input.position + uniforms.offset, 0, 1);
+    let position = vec4f(input.position + uniforms.translation, 0, 1);
 
     return VertexOutput(
         // Task 2.1: take our triangle's vertices to clip space using our camera's view and projection matrices

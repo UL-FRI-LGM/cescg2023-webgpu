@@ -17,7 +17,7 @@ struct FragmentOutput {
 }
 
 struct Uniforms {
-    offset : vec2f,
+    translation : vec2f,
 }
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
@@ -27,7 +27,7 @@ struct Uniforms {
 @vertex
 fn vertex(input : VertexInput) -> VertexOutput {
     return VertexOutput(
-        vec4f(input.position + uniforms.offset, 0, 1),
+        vec4f(input.position + uniforms.translation, 0, 1),
         input.texcoord,
     );
 }
