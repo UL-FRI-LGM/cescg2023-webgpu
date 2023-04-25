@@ -255,7 +255,7 @@ fn vertex(input : VertexInput) -> VertexOutput {
 fn fragment(input : FragmentInput) -> FragmentOutput {
     var output : FragmentOutput;
     output.color = pow(input.color, vec4f(1 / 2.2));
-    return output
+    return output;
 }
 ```
 
