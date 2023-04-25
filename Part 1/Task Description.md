@@ -21,8 +21,8 @@ another one, if you prefer.
 
 We need an HTML file and a JavaScript file.
 
-* Create an HTML file named `index.html` with a 512x512 canvas and a reference
-to the JavaScript module named `main.js`:
+* In the project root directory, create an HTML file named `part1.html` with a
+512x512 canvas and a reference to the JavaScript module named `main.js`:
 
 ```html
 <!DOCTYPE html>
@@ -36,8 +36,8 @@ to the JavaScript module named `main.js`:
 </html>
 ```
 
-* Create a JavaScript file named `main.js` and initialize the WebGPU adapter,
-device, and canvas:
+* In the project root directory, create a JavaScript file named `main.js` and
+initialize the WebGPU adapter, device, and canvas:
 
 ```js
 const adapter = await navigator.gpu.requestAdapter();
@@ -51,9 +51,9 @@ context.configure({
 });
 ```
 
-If you point your browser to `localhost:3000` you should see a blank page. You
-can open DevTools to inspect the page and see the canvas. The console in the
-DevTools panel should be empty (or at least without warnings and errors).
+If you point your browser to `localhost:3000/part1.html` you should see a blank
+page. You can open DevTools to inspect the page and see the canvas. The console
+in the DevTools panel should be empty (or at least without warnings and errors).
 
 * Inspect the features and limits of the adapter, and print out its basic info:
 
@@ -240,23 +240,16 @@ struct FragmentInput {
 }
 ```
 
-* Output the color from the vertex shader and use it in the fragment shader:
+* Output the color from the vertex shader:
 
 ```wgsl
-@vertex
-fn vertex(input : VertexInput) -> VertexOutput {
-    var output : VertexOutput;
-    output.position = vec4f(positions[input.vertexIndex], 0, 1);
-    output.color = colors[input.vertexIndex];
-    return output;
-}
+output.color = colors[input.vertexIndex];
+```
 
-@fragment
-fn fragment(input : FragmentInput) -> FragmentOutput {
-    var output : FragmentOutput;
-    output.color = pow(input.color, vec4f(1 / 2.2));
-    return output;
-}
+* Use the interpolated color in the fragment shader:
+
+```wgsl
+output.color = pow(input.color, vec4f(1 / 2.2));
 ```
 
 Note that we used gamma correction to output the colors in sRGB color space.
@@ -306,20 +299,7 @@ positionsBuffer.unmap();
 * Repeat the procedure for vertex colors:
 
 ```js
-const colors = new Float32Array([
-    1, 0, 0, 1,
-    0, 1, 0, 1,
-    0, 0, 1, 1,
-]);
-
-const colorsBuffer = device.createBuffer({
-    size: colors.byteLength,
-    usage: GPUBufferUsage.VERTEX,
-    mappedAtCreation: true,
-});
-
-new Float32Array(colorsBuffer.getMappedRange()).set(colors);
-colorsBuffer.unmap();
+// We encourage you to code it yourself :)
 ```
 
 Next, we will update the shader. The constant global arrays can be removed,
@@ -334,6 +314,13 @@ struct VertexInput {
     @location(0) position : vec2f,
     @location(1) color : vec4f,
 }
+```
+
+* Change the vertex shader to use the attributes instead of constants:
+
+```wgsl
+output.position = vec4f(input.position, 0, 1);
+output.color = input.color;
 ```
 
 We will then update the pipeline description, where we will describe the layout
@@ -378,14 +365,14 @@ const pipeline = device.createRenderPipeline({
     vertex: {
         module,
         entryPoint: 'vertex',
-        buffers: [positionsBufferLayout, colorsBufferLayout],
+        buffers: [ positionsBufferLayout, colorsBufferLayout ],
     },
     ...
 });
 ```
 
-Lastly, we will connect the actual vertex buffers to the pipeline during
-encoding of the render pass. This is because the buffers may be swapped between
+Lastly, we will connect the actual vertex buffers to the pipeline. This happens
+during encoding of the render pass, because the buffers may be swapped between
 different models as long as the layout of the data inside the buffers remains
 the same.
 
@@ -417,14 +404,8 @@ const vertices = new Float32Array([
      0.5, -0.5,     0, 0, 1, 1,
 ]);
 
-const vertexBuffer = device.createBuffer({
-    size: vertices.byteLength,
-    usage: GPUBufferUsage.VERTEX,
-    mappedAtCreation: true,
-});
-
-new Float32Array(vertexBuffer.getMappedRange()).set(vertices);
-vertexBuffer.unmap();
+// Here, create a single GPU buffer (call it vertexBuffer),
+// upload the vertices to it, and don't forget to unmap it!
 ```
 
 We also need a new buffer layout, which now holds both attributes. Note that
@@ -458,7 +439,7 @@ const pipeline = device.createRenderPipeline({
     vertex: {
         module,
         entryPoint: 'vertex',
-        buffers: [vertexBufferLayout],
+        buffers: [ vertexBufferLayout ],
     },
     ...
 };
@@ -515,30 +496,43 @@ renderPass.drawIndexed(3);
 ## Task 1.7: Translate the triangle with uniform variables
 
 We now want to translate the triangle with a given vector. To achieve that,
-we need to make the following changes:
+we are going to:
 
-1. Import the dat.gui library and add two sliders for the translation.
-1. Move the render code to a function and call it on every translation change.
-1. Create a uniform variable in the shader and assign it to a group and give it
-a binding number.
-1. Create a uniform buffer of sufficient size.
-1. Create a bind group and connect the uniform buffer to it.
-1. When rendering, update the uniform buffer and set the bind group.
+1. create a uniform variable in the shader,
+1. create a uniform buffer,
+1. create a bind group for connecting the uniform buffer to the shader, and
+1. when rendering, update the uniform buffer and set the bind group.
 
-We want to set the translation vector through the GUI using the dat.gui library,
+First, we will put the rendering code in a `render` function, which we will call
+on every translation change. We will also call the function immediately, because
+we want to show the triangle when the page loads.
+
+* Move the render code to the `render` function:
+
+```js
+function render() {
+    const encoder = device.createCommandEncoder();
+    ...
+    device.queue.submit([encoder.finish()]);
+}
+
+render();
+```
+
+We will set the translation vector through the GUI using the dat.gui library,
 so we will add a reference to the library script in the HTML and import it in
 `main.js`.
 
 * Add the dat.gui script to the HTML:
 
 ```html
-<script src="../../lib/dat.gui.min.js"></script>
+<script src="lib/dat.gui.min.js"></script>
 ```
 
 * Import the dat.gui library:
 
 ```js
-import { GUI } from '../../../lib/dat.gui.module.js';
+import { GUI } from 'lib/dat.gui.module.js';
 ```
 
 * Add two sliders to control the x and y components of the translation vector:
@@ -553,23 +547,6 @@ const gui = new GUI();
 gui.add(translation, 'x', -1, 1).onChange(render);
 gui.add(translation, 'y', -1, 1).onChange(render);
 ```
-
-We must re-render the scene on all changes of the translation. This is why we
-will put all rendering code in a function called `render`:
-
-```js
-function render() {
-    const encoder = device.createCommandEncoder();
-    ...
-    device.queue.submit([encoder.finish()]);
-}
-
-render();
-```
-
-Note that we are calling the render function immediately, so that the scene is
-rendered when the page loads, and we also attached the render function as a
-callback when the user interacts with the slider.
 
 Next, we will update the shader. The translation vector is going to be the same
 for all vertices, so we are going to use a *uniform variable*. We only need one
@@ -629,7 +606,7 @@ pipeline layout, the bind group layout would ideally be created in advance.
 * Create the bind group for the uniforms:
 
 ```js
-const uniformBindGroup = device.createBindGroup({
+const bindGroup = device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),
     entries: [
         {
@@ -647,19 +624,19 @@ Lastly, we connect the bind group to the shader in the render pass.
 * Set the bind group in the render pass:
 
 ```js
-renderPass.setBindGroup(0, uniformBindGroup);
+renderPass.setBindGroup(0, bindGroup);
 ```
 
 ## Task 1.8: Apply a texture to the triangle
 
 Now we want to texture the triangle with an image that we fetch from the server.
-To achieve this, we are going to make the following changes:
+To achieve this, we are going to:
 
-1. Replace the color attribute with texture coordinates.
-1. Add a texture and a sampler uniform, and sample the texture in the fragment
-shader.
-1. Create a texture and a sampler object and bind them to the shader.
-1. Fetch the image from the server, decode it, and copy it to the texture.
+1. replace the color attribute with texture coordinates,
+1. add a texture and a sampler uniform, and sample the texture in the fragment
+shader,
+1. create a texture and a sampler object and bind them to the shader, and
+1. fetch the image from the server, decode it, and copy it to the texture.
 
 To replace the colors with texture coordinates, we will change the vertex
 buffer and the shader:
@@ -668,6 +645,7 @@ buffer and the shader:
 
 ```js
 const vertices = new Float32Array([
+    // positions    // texture coordinates
      0.0,  0.5,     0.5, 1.0,
     -0.5, -0.5,     0.0, 0.0,
      0.5, -0.5,     1.0, 0.0,
@@ -698,21 +676,18 @@ const vertexBufferLayout = {
 
 ```wgsl
 struct VertexInput {
-    @location(0) position : vec2f,
+    ...
     @location(1) texcoord : vec2f,
 }
 
 struct VertexOutput {
-    @builtin(position) position : vec4f,
+    ...
     @location(0) texcoord : vec2f,
 }
 
 struct FragmentInput {
+    ...
     @location(0) texcoord : vec2f,
-}
-
-struct FragmentOutput {
-    @location(0) color : vec4f,
 }
 ```
 
@@ -729,28 +704,23 @@ floating point components, so the correct texture type is `texture_2d<f32>`.
 @group(0) @binding(2) var uSampler : sampler;
 ```
 
-* Sample the texture at the interpolated texture coordinates:
+* Output the texture coordinates from the vertex shader:
 
 ```wgsl
-@vertex
-fn vertex(input : VertexInput) -> VertexOutput {
-    var output : VertexOutput;
-    output.position = vec4f(input.position + uniforms.translation, 0, 1);
-    output.texcoord = input.texcoord;
-    return output;
-}
+output.texcoord = input.texcoord;
+```
 
-@fragment
-fn fragment(input : FragmentInput) -> FragmentOutput {
-    var output : FragmentOutput;
-    output.color = textureSample(uTexture, uSampler, input.texcoord);
-    return output;
-}
+* Sample the texture at the interpolated texture coordinates in the fragment
+shader:
+
+```wgsl
+output.color = textureSample(uTexture, uSampler, input.texcoord);
 ```
 
 Now we turn our attention to the host code, where we first fetch the image from
-the server and decode it. Note that this is an async process. We will use the
-image `brick.png` and put it into the same directory as the `index.html` file.
+the server and decode it. Note that this is an async process. You can use any
+image you like. We will use `brick.png` from the `common/assets/images`
+directory. Put the chosen image into the project root directory.
 
 * Fetch the image from the server and decode it to `ImageBitmap`:
 
@@ -814,7 +784,7 @@ bind group. Note that the binding numbers match the ones in the shader.
 * Add the texture and sampler to the bind group:
 
 ```js
-const uniformBindGroup = device.createBindGroup({
+const bindGroup = device.createBindGroup({
     ...
     entries: [
         ...
