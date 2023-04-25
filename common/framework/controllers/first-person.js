@@ -61,7 +61,7 @@ export class FirstPersonController {
         this.#initHandlers();
     }
 
-    update(dt) {
+    update(dt = 0.0) {
         // Calculate forward and right vectors.
         const cos = Math.cos(this.#yaw);
         const sin = Math.sin(this.#yaw);
