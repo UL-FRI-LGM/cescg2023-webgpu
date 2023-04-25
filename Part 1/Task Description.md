@@ -736,7 +736,7 @@ floating point components, so the correct texture type is `texture_2d<f32>`.
 fn vertex(input : VertexInput) -> VertexOutput {
     var output : VertexOutput;
     output.position = vec4f(input.position + uniforms.translation, 0, 1);
-    output.texcoord = input.texcoord,
+    output.texcoord = input.texcoord;
     return output;
 }
 
