@@ -4,12 +4,18 @@ In the second part, we'll leave the simple triangle behind us and step into 3D r
 We'll extend our knowledge from Part 1 to load and render a 3D model, and to pass user input to shaders.
 Finally, we'll learn about depth testing and culling modes.
 
-For the remainder of the workshop, we'll use a small framework to structure our code.
+For the remainder of the workshop, we'll use a small framework to structure our code and to take care of running a render loop for us.
 We took the liberty to refactor our code from Part 1 to make the transition as smooth as possible.
+For all coming tasks you'll only need the following files:
+* `index.html`: this is what we'll have open in our browsers. It contains the canvas we'll be rendering to, as well as all necessary imports.
+* `workshop.js`: this is where all our JavaScript code is located. You will make changes to this file in almost all tasks.
+* `shader.wgsl`: this is the shader you've progressively built in Part 1. You'll continue doing so in the coming tasks.
+
+**Note: if you haven't completed Part 1 or just want to have a clean slate, you can copy the shader from our reference implementation:** `Part 2/Reference Implemenation/Task 2.0/shader.wgsl`
 
 ## Task 2.0: Get to know the Framework
 
-Our little framework provides a `Sample` class, which takes care of setting up WebGPU and requesting animation frames.
+Our little framework provides a `Sample` class, which takes care of setting up WebGPU and requesting animation frames (i.e., running a render loop).
 It has the following two lifecycle functions that are called by its static `run` method:
 * `async init() {}`: this is called at initialization time and the place where we'll load our shaders, and set up textures, buffers and pipelines.
 * `render(deltaTime = 0.0) {}`: this is called once per frame. Here, we'll update uniform buffers, and encode render and compute passes.
@@ -25,7 +31,7 @@ The `Sample` class also stores the following objects to provide easy access to t
 * `gui`: a [dat.GUI object](https://github.com/dataarts/dat.gui/blob/master/API.md) to add and control GUI elements
 
 To make the transition a little easier, we've refactored the code from Part 1 into the structure of our framework.
-You can find the in the `workshop.js` file in the project's root folder.
+You can find the `workshop.js` file in the project's root folder.
 Here, we define a `Workshop` class that extends the `Sample` class:
 
 ```js
@@ -79,7 +85,7 @@ render() {
     renderPass.setPipeline(this.pipeline);
     renderPass.setBindGroup(0, this.bindGroup);
     renderPass.setVertexBuffer(0, this.vertexBuffer);
-    renderPass.setIndexBuffer(this.indexBuffer, 'uint16');
+    renderPass.setIndexBuffer(this.indexBuffer, 'uint32');
     renderPass.drawIndexed(3);
     renderPass.end();
     this.device.queue.submit([commandEncoder.finish()]);
@@ -139,7 +145,7 @@ struct Uniforms {
 ```wgsl
 fn vertex(input: VertexInput) -> VertexOutput {
     return VertexOutput(
-        uniforms.camera.projection * uniforms.camera.view * vec4<f32>(input.position + uniforms.offset, 0, 1),
+        uniforms.camera.projection * uniforms.camera.view * vec4<f32>(input.position + uniforms.translation, 0, 1),
         input.texcoord,
     );
 }
@@ -147,7 +153,7 @@ fn vertex(input: VertexInput) -> VertexOutput {
 
 The shader now expects two matrices to be in the `Uniforms` struct, so we need to adjust the `Workshop` class as well:
 * In the `#initResources` methods, adjust the uniform buffer's size to hold two more matrices **and implicitly also an extra `vec2` worth of padding because of [alignment and structure member layout rules](https://www.w3.org/TR/WGSL/#alignment-and-size)**. Each `mat4x4<f32>` consists of 16 floats and a `vec2<f32>` has 8 bytes, so our buffer should have a size of `8 + 8 + 2 * 16 * Float32Array.BYTES_PER_ELEMENT` bytes.
-* Import the `OrbitCamera` class from `./common/engine/util/orbit-camera.js` ...
+* Import the `OrbitCamera` class from `./common/framework/util/orbit-camera.js` ...
 * ... and create a camera instance in the `init` method of our `Workshop` class:
 ```js
 async init() {
@@ -282,8 +288,8 @@ We don't see any optical changes in this task, but we've set the stage for 3D ob
 
 ## Task 2.3: Load and Render a 3D Model
 Now that we have prepared everything to render 3D models, the time has finally come to do so:
-* Import the `Model` class from `./common/engine/util/model.js`. The `Model` class has some helper functions to create vertex and index buffers and get meta data such as the number of vertex indices.
-* Import the `Vertex` helper class from `./common/engine/core/mesh.js`.
+* Import the `Model` class from `./common/framework/util/model.js`. The `Model` class has some helper functions to create vertex and index buffers and get meta data such as the number of vertex indices.
+* Import the `Vertex` helper class from `./common/framework/core/mesh.js`.
 * In `init`, create an instance of the `Model` class from a 3D model we'll load using the ominous `assetLoader` lurking around our `init` function.
   In our reference implementation, we'll use the Stanford bunny, but you can also use any other model in the `common/assets/models` folder.
   In `common/framework/utils/test-models.js`, you can also find some convenience functions to load each model and its corresponding texture directly.
@@ -307,12 +313,12 @@ async init() {
         ...modelMatrix
     ]);
 ```
-* In `render`, make sure to use the correct index type (**the `Model` class uses `'uint32'`!**) and number of indices for drawing the model:
+* In `render`, make sure to use the correct number of indices for drawing the model and optionally use the `indexType` provided by the `Model`:
 ```js
 renderPass.setIndexBuffer(this.indexBuffer, this.model.indexType); // = 'uint32'
 renderPass.drawIndexed(this.model.numIndices);
 ```
-* Optionally, use the `vertexLayout` provided by the `Vertex` class (import from `./common/engine/core/mesh.js`) when creating our render pipeline in `#initPipelines`:
+* Optionally, use the `vertexLayout` provided by the `Vertex` class (import from `./common/framework/core/mesh.js`) when creating our render pipeline in `#initPipelines`:
 ```js
 // ...
 vertex: {
@@ -441,7 +447,8 @@ this.backFaceCullingPipeline = this.device.createRenderPipeline({
 ```
 * In `#initPipelines`, create a pipeline that culls front faces and store it in the `Workshop` instance.
 * In `#initPipelines`, store one pipeline as the default pipeline in the `Workshop` instance.
-* Switch between pipelines on keyboard inputs, e.g., using the `key` method of our `Workshop` class:
+* Switch between pipelines on keyboard inputs. In our reference implementation, we add a boolean `cullBackFaces` switch
+  to the `Workshop` instance to keep track of the current culling mode, and use the `key` method to change it on a key press:
 ```js
 key(type, key) {
     if (type === 'up' && key.toLowerCase() === 'c') {

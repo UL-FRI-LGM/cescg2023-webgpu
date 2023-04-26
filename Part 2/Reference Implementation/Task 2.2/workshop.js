@@ -39,7 +39,7 @@ export class Workshop extends Sample {
         renderPass.setPipeline(this.pipeline);
         renderPass.setBindGroup(0, this.bindGroup);
         renderPass.setVertexBuffer(0, this.vertexBuffer);
-        renderPass.setIndexBuffer(this.indexBuffer, 'uint16');
+        renderPass.setIndexBuffer(this.indexBuffer, 'uint32');
         renderPass.drawIndexed(3);
         renderPass.end();
         this.device.queue.submit([commandEncoder.finish()]);
@@ -71,15 +71,15 @@ export class Workshop extends Sample {
         this.vertexBuffer.unmap();
 
         // Prepare index buffer
-        const indices = new Uint16Array([
+        const indices = new Uint32Array([
             0, 1, 2,
         ]);
         this.indexBuffer = this.device.createBuffer({
-            size: Math.ceil(indices.byteLength / 4) * 4,
+            size: indices.byteLength,
             usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
             mappedAtCreation: true,
         });
-        new Uint16Array(this.indexBuffer.getMappedRange()).set(indices);
+        new Uint32Array(this.indexBuffer.getMappedRange()).set(indices);
         this.indexBuffer.unmap();
 
         // Set up brick texture
