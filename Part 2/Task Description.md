@@ -9,9 +9,7 @@ We took the liberty to refactor our code from Part 1 to make the transition as s
 For all coming tasks you'll only need the following files:
 * `index.html`: this is what we'll have open in our browsers. It contains the canvas we'll be rendering to, as well as all necessary imports.
 * `workshop.js`: this is where all our JavaScript code is located. You will make changes to this file in almost all tasks.
-* `shader.wgsl`: this is the shader you've progressively built in Part 1. You'll continue doing so in the coming tasks.
-
-**Note: if you haven't completed Part 1 or just want to have a clean slate, you can copy the shader from our reference implementation:** `Part 2/Reference Implemenation/Task 2.0/shader.wgsl`
+* `shaders/shader.wgsl`: this is the shader we're going to use as a building block for all coming tasks. It should be the same or at least very similar to what you've progressively built in Part 1.
 
 ## Task 2.0: Get to know the Framework
 

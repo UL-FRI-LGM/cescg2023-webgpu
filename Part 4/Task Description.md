@@ -58,7 +58,7 @@ With that covered, you should know everything you need to write your first compu
 In Part 3, we've created a storage buffer to pass our light sources to the GPU. This will come in handy now, as we're
 going to use a compute shader to change positions of our light sources.
 
-* As a first step, create a new shader file in the project's root directory and name it `animate-lights.wgsl`.
+* As a first step, create a new shader file in the `shaders` directory and name it `animate-lights.wgsl`.
 * Define the entry point to our compute shader with a workgroup size of 64 in the x dimension, and none (i.e., implicitly 1) in y and z dimensions. 
   In our compute shader, we'll spawn a thread for each light source in the storage buffer and use the thread's global id to determine which light source it should process.
   A thread's global id can be accessed in the shader via the [built-in `global_invocation_id`](https://www.w3.org/TR/WGSL/#builtin-values).
@@ -150,7 +150,7 @@ this.numLightSources = numLightSources;
   required member that describes the compute shader to be used with the pipeline: `compute`.
   It is similar to the `vertex` and `fragment` members of a [GPURenderPipelineDescriptor](https://www.w3.org/TR/webgpu/#dictdef-gpurenderpipelinedescriptor):
 ```js
-const animateLightsShaderCode = await new Loader().loadText('animate-lights.wgsl');
+const animateLightsShaderCode = await new Loader().loadText('shaders/animate-lights.wgsl');
 const animateLightsShaderModule = this.device.createShaderModule({code: animateLightsShaderCode});
 const animateLightsPipeline = this.device.createComputePipeline({
     layout: 'auto',
@@ -285,7 +285,7 @@ struct Uniforms {
 }
 ```
 
-Then we'll create a new shader called `light-sources.wgsl`:
+Then we'll create a new shader in the `shaders` directory and call it `light-sources.wgsl`:
 * Copy the `Camera`, `Uniforms`, and `PointLight` structs from `shader.wgsl`.
 * Copy all binding definitions from `shader.wgsl`.
   For simplicity, we'll use the same bind group & pipeline layout, and the same bind group for our new shader.
@@ -366,7 +366,7 @@ const uniformArray = new Float32Array([
 ```js
 // Its descriptor is almost the same as for the other pipeline. It only uses another shader module.
 // We'll use the same bind group and attachments for this pipeline, so we don't need to create anything else here.
-const renderLightSourcesCode = await new Loader().loadText('light-sources.wgsl');
+const renderLightSourcesCode = await new Loader().loadText('shaders/light-sources.wgsl');
 const renderLightSourcesShaderModule = this.device.createShaderModule({ code: renderLightSourcesCode });
 this.renderLightSourcesPipeline = this.device.createRenderPipeline({
     layout: pipelineLayout,
