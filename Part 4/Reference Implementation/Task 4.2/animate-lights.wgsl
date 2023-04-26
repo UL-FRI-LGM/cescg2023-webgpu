@@ -14,8 +14,10 @@ const MOVEMENT_SPEED = 0.005;
 
 @group(0) @binding(0) var<storage, read_write> uLights : array<PointLight>;
 
+// Task 4.2: define the workgroup size as an override constant with a default value of 64
 override WORKGROUP_SIZE: u32 = 64;
 
+// Task 4.2: use the override constant to define the override constant instead of a hard-coded value of 64
 @compute
 @workgroup_size(WORKGROUP_SIZE)
 fn compute(@builtin(global_invocation_id) global_id: vec3u) {

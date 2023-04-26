@@ -47,7 +47,7 @@ export class Workshop extends Sample {
         animateLightsPass.setPipeline(this.animateLightsPipelineData.pipeline);
         animateLightsPass.setBindGroup(0, this.animateLightsPipelineData.bindGroup);
         animateLightsPass.dispatchWorkgroups(
-            Math.ceil(this.numLightSources / this.animateLightsPipelineData.workGroupSize.x)
+            Math.ceil(this.numLightSources / 64)
         );
         animateLightsPass.end();
 
@@ -138,15 +138,11 @@ export class Workshop extends Sample {
         // Task 4.1: create a compute pipeline to animate the light sources
         const animateLightsShaderCode = await new Loader().loadText('animate-lights.wgsl');
         const animateLightsShaderModule = this.device.createShaderModule({code: animateLightsShaderCode});
-        const animateLightsWorkGroupSize = { x: 64 };
         const animateLightsPipeline = this.device.createComputePipeline({
             layout: 'auto',
             compute: {
                 module: animateLightsShaderModule,
                 entryPoint: 'compute',
-                constants: {
-                    WORKGROUP_SIZE: animateLightsWorkGroupSize.x,
-                },
             }
         });
 
@@ -162,7 +158,6 @@ export class Workshop extends Sample {
         this.animateLightsPipelineData = {
             pipeline: animateLightsPipeline,
             bindGroup: animateLightsBindGroup,
-            workGroupSize: animateLightsWorkGroupSize,
         }
     }
 
