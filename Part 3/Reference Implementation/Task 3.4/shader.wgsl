@@ -43,9 +43,9 @@ struct PointLight {
 
 // Task 3.2: add a constant instance of our PointLight struct
 const LIGHT_SOURCE: PointLight = PointLight(
-    vec3(0.0, 1.0, 1.0),    // position
-    2.0f,                   // intensity
-    vec3(1.0, 1.0, 1.0),    // color
+    vec3(0, 1, 1),    // position
+    2,                // intensity
+    vec3(1, 1, 1),    // color
 );
 
 // Task 3.2: add a constant ambient light
@@ -72,20 +72,20 @@ fn vertex(input : VertexInput) -> VertexOutput {
 }
 
 // Task 3.1: compute diffuse lighting (Lambertian reflection)
-fn compute_diffuse_lighting(normal: vec3f, light_direction: vec3f) -> f32 {
-    return max(0.0, dot(normal, light_direction));
+fn computeDiffuseLighting(normal: vec3f, lightDirection: vec3f) -> f32 {
+    return max(0, dot(normal, lightDirection));
 }
 
 // Task 3.3: compute diffuse lighting for light source with index `light_index`
-fn compute_lighting(position: vec3f, normal: vec3f, albedo: vec3f, light_index: u32) -> vec3f {
+fn computeLighting(position: vec3f, normal: vec3f, albedo: vec3f, light_index: u32) -> vec3f {
     // Task 3.4 (bonus): attenuate light color based on the light source's distance to the fragment
     let d = distance(position, uLights[light_index].position);
-    let attenuation = 1.0 / (0.5 + pow(d, 2.0));
-    let attenuated_light_color = attenuation * uLights[light_index].color * uLights[light_index].intensity;
+    let attenuation = 1 / (0.5 + pow(d, 2));
+    let attenuatedLightColor = attenuation * uLights[light_index].color * uLights[light_index].intensity;
 
-    let light_direction = normalize(uLights[light_index].position - position);
+    let lightDirection = normalize(uLights[light_index].position - position);
 
-    let diffuse = compute_diffuse_lighting(normal, light_direction) * attenuated_light_color;
+    let diffuse = computeDiffuseLighting(normal, lightDirection) * attenuatedLightColor;
 
     return albedo * diffuse;
 }
@@ -94,9 +94,9 @@ fn compute_lighting(position: vec3f, normal: vec3f, albedo: vec3f, light_index: 
 fn fragment(input : FragmentInput) -> FragmentOutput {
     let albedo = textureSample(uTexture, uSampler, input.texcoord).rgb;
     // Task 3.3: compute lighting for each light source in our buffer
-    var color = vec4f(AMBIENT_LIGHT, 1.0);
+    var color = vec4f(AMBIENT_LIGHT, 1);
     for (var i = 0u; i < arrayLength(&uLights); i += 1u) {
-        color += vec4f(compute_lighting(input.position, input.normal, albedo, i), 0.0);
+        color += vec4f(computeLighting(input.position, input.normal, albedo, i), 0);
     }
     return FragmentOutput(
         color,

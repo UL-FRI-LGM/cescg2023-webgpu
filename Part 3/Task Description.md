@@ -12,16 +12,16 @@ We'll use the [Lambertian reflectance](https://en.wikipedia.org/wiki/Lambertian_
 We'll make the following changes to our shader:
 * Add a function to compute the diffuse illumination:
 ```wgsl
-fn compute_diffuse_lighting(normal: vec3f, light_direction: vec3f) -> f32 {
-    return max(0.0, dot(normal, light_direction));
+fn computeDiffuseLighting(normal: vec3f, lightDirection: vec3f) -> f32 {
+    return max(0, dot(normal, lightDirection));
 }
 ```
 * Now define a hard coded directional light source and call this function from the fragment stage like this:
 ```wgsl
 fn fragment(input : FragmentInput) -> FragmentOutput {
     let albedo = textureSample(uTexture, uSampler, input.texcoord).rgb;
-    let light_direction = normalize(vec3<f32>(0.0, 1.0, 1.0));
-    let color = vec4f(compute_diffuse_lighting(input.normal, light_direction) * albedo, 1.0);
+    let lightDirection = normalize(vec3<f32>(0, 1, 1));
+    let color = vec4f(computeDiffuseLighting(input.normal, lightDirection) * albedo, 1);
     return FragmentOutput(
         color,
     );
@@ -43,9 +43,9 @@ struct PointLight {
 }
 
 const LIGHT_SOURCE: PointLight = PointLight(
-    vec3(0.0, 1.0, 1.0),    // position
-    2.0f,                   // radius
-    vec3(1.0, 1.0, 1.0),    // color
+    vec3(0, 1, 1),    // position
+    2,                // radius
+    vec3(1, 1, 1),    // color
 );
 ```
 
@@ -79,9 +79,9 @@ fn vertex(input: VertexInput) -> VertexOutput {
 ```
 * Create a new function to compute the illumination for a fragment and call it from the fragment stage:
 ```wgsl
-fn compute_lighting(position: vec3f, normal: vec3f, albedo: vec3f) -> vec3f {
-    let light_direction = normalize(vec3<f32>(0.0, 1.0, 1.0));
-    return compute_diffuse_lighting(input.normal, light_direction) * albedo;
+fn computeLighting(position: vec3f, normal: vec3f, albedo: vec3f) -> vec3f {
+    let lightDirection = normalize(vec3<f32>(0, 1, 1));
+    return computeDiffuseLighting(input.normal, lightDirection) * albedo;
 }
 ```
 * Use the light source's radius, to determine if the fragment is affected by the light source or not. If the fragment is not within the light's radius, the color should be black. The built-in `distance` function returns the distance between two points:
@@ -90,13 +90,13 @@ distance(position, LIGHT_SOURCE.position)
 ```
 * Compute the light direction based on the light source's position and the fragment's position, and replace the constant light direction:
 ```wgsl
-let light_direction = normalize(LIGHT_SOURCE.position - position);
+let lightDirection = normalize(LIGHT_SOURCE.position - position);
 ```
-* Multiply the light source's color (`LIGHT_SOURCE.color`) with the result of `compute_diffuse_lighting`. Feel free to change the light's color to see the effects.
+* Multiply the light source's color (`LIGHT_SOURCE.color`) with the result of `computeDiffuseLighting`. Feel free to change the light's color to see the effects.
 * With some fragments being completely outside the light's radius, our scene is getting rather dark. Optionally, add an ambient light source to our shader:
 ```wgsl
 const AMBIENT_LIGHT: vec3f = vec3f(0.1);
-let color = vec4f(AMBIENT_LIGHT + compute_lighting(input.position, input.normal, albedo), 1.0);
+let color = vec4f(AMBIENT_LIGHT + computeLighting(input.position, input.normal, albedo), 1);
 ```
 
 ## Task 3.3: Upload a Light Source via a Storage Buffer
@@ -124,27 +124,26 @@ We'll first adapt our shader:
 ```wgsl
 @group(0) @binding(3) var<storage, read> uLights : array<PointLight>;
 ```
-* Then, make `compute_lighting` take a light index (`u32`) as an additional argument, and replace all usages of `LIGHT_SOURCE` with buffer accesses (`uLights[light_index]`):
+* Then, make `computeLighting` take a light index (`u32`) as an additional argument, and replace all usages of `LIGHT_SOURCE` with buffer accesses (`uLights[light_index]`):
 ```wgsl
-fn compute_lighting(position: vec3f, normal: vec3f, albedo: vec3f, light_index: u32) -> vec3f {
+fn computeLighting(position: vec3f, normal: vec3f, albedo: vec3f, light_index: u32) -> vec3f {
     if distance(position, uLights[light_index].position) > uLights[light_index].radius {
         return vec3f();
     }
-    let light_direction = normalize(uLights[light_index].position - position);
-    let diffuse = compute_diffuse_lighting(normal, light_direction) * uLights[light_index].color;
+    let lightDirection = normalize(uLights[light_index].position - position);
+    let diffuse = computeDiffuseLighting(normal, lightDirection) * uLights[light_index].color;
     return albedo * diffuse;
 }
 ```
-* Finally, loop over the light sources in our buffer and call `compute_lighting` on each of them within the fragment stage of our shader:
+* Finally, loop over the light sources in our buffer and call `computeLighting` on each of them within the fragment stage of our shader:
 ```wgsl
-var color = vec4f(AMBIENT_LIGHT, 1.0);
+var color = vec4f(AMBIENT_LIGHT, 1);
 for (var i = 0u; i < arrayLength(&uLights); i += 1u) {
-    color += vec4f(compute_lighting(input.position, input.normal, albedo, i), 0.0);
+    color += vec4f(computeLighting(input.position, input.normal, albedo, i), 0);
 }
 ```
 
 Now, we'll also have to make some changes to our `Workshop` class:
-* Import `vec3` from `./lib/gl-matrix-module.js`.
 * In `#initResources`, create a buffer with the `STORAGE` buffer usage to hold a point light source. **Our light sources consists of a `vec3<f32>`, an `f32`, another `vec3<f32>`, and (because of the [alignment and structure member layout rules](https://www.w3.org/TR/WGSL/#alignment-and-size)) an additional `f32` for padding:**
 ```js
 const pointLightStrideInElements = 8; // 3 (position) + 1 (radius) + 3 (color) + 1 (padding)
@@ -157,9 +156,9 @@ this.pointlightsBuffer = this.device.createBuffer({
 * Then, get the mapped range of the storage buffer and fill it with a point light source:
 ```js
 const pointLightsBufferRange = new Float32Array(this.pointlightsBuffer.getMappedRange());
-pointLightsBufferRange.set(vec3.fromValues(0.0, 1.0, 1.0));     // position, offset = 0
-pointLightsBufferRange.set([2], 3);                             // radius,   offset = 3
-pointLightsBufferRange.set(vec3.fromValues(1.0, 1.0, 1.0), 4);  // color,    offest = 4
+pointLightsBufferRange.set([0, 1, 1]);     // position, offset = 0
+pointLightsBufferRange.set([2], 3);        // radius,   offset = 3
+pointLightsBufferRange.set([1, 1, 1], 4);  // color,    offest = 4
 this.pointlightsBuffer.unmap();
 ```
 * In `#initPipelines`, add the new storage buffer binding layout to the bind group layout. Unlike a uniform buffer binding layout, we need to explicitly state the [buffer binding layout's type](https://www.w3.org/TR/webgpu/#enumdef-gpubufferbindingtype):
@@ -191,14 +190,14 @@ We'll just get rid of the radius and have a light intensity instead.
 
 We only need to make a few changes to our shader:
 * Rename the `radius` member of our `PointLight` struct to `intensity`.
-* In `compute_lighting`, we compute the distance to the light source to attenuate the intensity:
+* In `computeLighting`, we compute the distance to the light source to attenuate the intensity:
 ```wgsl
-fn compute_lighting(position: vec3f, normal: vec3f, albedo: vec3f, light_index: u32) -> vec3f {
+fn computeLighting(position: vec3f, normal: vec3f, albedo: vec3f, light_index: u32) -> vec3f {
     let d = distance(position, uLights[light_index].position);
-    let attenuation = 1.0 / (0.5 + pow(d, 2.0)); // we'll add a constant factor of 0.5 to avoid the singularity at d = 0
-    let attenuated_light_color = attenuation * uLights[light_index].color * uLights[light_index].intensity;
+    let attenuation = 1 / (0.5 + pow(d, 2)); // we'll add a constant factor of 0.5 to avoid the singularity at d = 0
+    let attenuatedLightColor = attenuation * uLights[light_index].color * uLights[light_index].intensity;
     // ...
-    let diffuse = compute_diffuse_lighting(normal, light_direction) * attenuated_light_color;
+    let diffuse = computeDiffuseLighting(normal, lightDirection) * attenuatedLightColor;
     // ...
 }
 ```
@@ -208,21 +207,21 @@ We've created a storage buffer and a shader that is flexible enough to handle an
 Instead, we just upload a single light source. Let's fix that!
 
 In our `Workshop` class make the following changes:
-* Make the storage buffer hold `n` light sources.
-* Create `n` light sources and store them in the buffer, e.g., like so:
+* Make the storage buffer hold `numLightSources` light sources.
+* Create `numLightSources` light sources and store them in the buffer, e.g., like so:
 ```js
 for (let i = 0; i < numLightSources; ++i) {
-    const position = vec3.fromValues(
+    const position = [
         Math.random() * 2 - 1,
         Math.random() * 2 - 1,
         Math.random() * 2 - 1,
-    );
+    ];
     const intensity = Math.random() * 2;
-    const color = vec3.fromValues(
+    const color = [
         Math.random(),
         Math.random(),
         Math.random(),
-    );
+    ];
     const offset = i * pointLightStrideInElements;
     pointLightsBufferRange.set(position, offset);
     pointLightsBufferRange.set([intensity], offset + 3);
@@ -254,20 +253,20 @@ const MATERIAL: Material = Material(
     50, // shininess
 );
 ```
-* In `compute_diffuse_lighting`, multiply the result with `MATERIAL.diffuse`.
-* Add the function `compute_specular_lighting`:
+* In `computeDiffuseLighting`, multiply the result with `MATERIAL.diffuse`.
+* Add the function `computeSpecularLighting`:
 ```wgsl
-fn compute_specular_lighting(position: vec3f, normal: vec3f, light_direction: vec3f) -> f32 {
+fn computeSpecularLighting(position: vec3f, normal: vec3f, lightDirection: vec3f) -> f32 {
     let view_direction = normalize(uniforms.camera.position - position);
-    let reflection_vector = reflect(-light_direction, normal);
-    return pow(max(0.0, dot(view_direction, reflection_vector)), MATERIAL.shininess) * MATERIAL.specular;
+    let reflection_vector = reflect(-lightDirection, normal);
+    return pow(max(0, dot(view_direction, reflection_vector)), MATERIAL.shininess) * MATERIAL.specular;
 }
 ```
-* In `compute_lighting`, call `compute_specular_lighting` and add it to the result:
+* In `computeLighting`, call `computeSpecularLighting` and add it to the result:
 ```wgsl
-fn compute_lighting(position: vec3f, normal: vec3f, albedo: vec3f, light_index: u32) -> vec3f {
+fn computeLighting(position: vec3f, normal: vec3f, albedo: vec3f, light_index: u32) -> vec3f {
     // ...
-    let specular = compute_specular_lighting(position, normal, light_direction) * attenuated_light_color;
+    let specular = computeSpecularLighting(position, normal, lightDirection) * attenuatedLightColor;
     return albedo * diffuse + specular;
 }
 ```

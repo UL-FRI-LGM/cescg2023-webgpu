@@ -42,9 +42,9 @@ struct PointLight {
 
 // Task 3.2: add a constant instance of our PointLight struct
 const LIGHT_SOURCE: PointLight = PointLight(
-    vec3(0.0, 1.0, 1.0),    // position
-    2.0f,                   // radius
-    vec3(1.0, 1.0, 1.0),    // color
+    vec3(0, 1, 1),    // position
+    2,                // radius
+    vec3(1, 1, 1),    // color
 );
 
 // Task 3.2: add a constant ambient light
@@ -69,20 +69,20 @@ fn vertex(input : VertexInput) -> VertexOutput {
 }
 
 // Task 3.1: compute diffuse lighting (Lambertian reflection)
-fn compute_diffuse_lighting(normal: vec3f, light_direction: vec3f) -> f32 {
-    return max(0.0, dot(normal, light_direction));
+fn computeDiffuseLighting(normal: vec3f, lightDirection: vec3f) -> f32 {
+    return max(0, dot(normal, lightDirection));
 }
 
 // Task 3.2: compute diffuse lighting (Lambertian reflection)
-fn compute_lighting(position: vec3f, normal: vec3f, albedo: vec3f) -> vec3f {
+fn computeLighting(position: vec3f, normal: vec3f, albedo: vec3f) -> vec3f {
     // Task 3.2: ignore the light source if it is too far away from the current fragment
     if distance(position, LIGHT_SOURCE.position) > LIGHT_SOURCE.radius {
         return vec3f();
     }
 
-    let light_direction = normalize(LIGHT_SOURCE.position - position);
+    let lightDirection = normalize(LIGHT_SOURCE.position - position);
 
-    let diffuse = compute_diffuse_lighting(normal, light_direction) * LIGHT_SOURCE.color;
+    let diffuse = computeDiffuseLighting(normal, lightDirection) * LIGHT_SOURCE.color;
 
     return albedo * diffuse;
 }
@@ -91,7 +91,7 @@ fn compute_lighting(position: vec3f, normal: vec3f, albedo: vec3f) -> vec3f {
 fn fragment(input : FragmentInput) -> FragmentOutput {
     let albedo = textureSample(uTexture, uSampler, input.texcoord).rgb;
     // Task 3.2: call compute lighting here
-    let color = vec4f(AMBIENT_LIGHT + compute_lighting(input.position, input.normal, albedo), 1.0);
+    let color = vec4f(AMBIENT_LIGHT + computeLighting(input.position, input.normal, albedo), 1);
     return FragmentOutput(
         color,
     );

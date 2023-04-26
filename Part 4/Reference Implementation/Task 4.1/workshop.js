@@ -1,6 +1,5 @@
 'use strict';
 
-import { vec3 } from '../../../lib/gl-matrix-module.js';
 import { Sample } from '../../../common/framework/sample.js';
 import { Vertex } from '../../../common/framework/core/mesh.js';
 import { Loader } from '../../../common/framework/util/loader.js';
@@ -116,17 +115,17 @@ export class Workshop extends Sample {
         });
         const pointLightsBufferRange = new Float32Array(this.pointlightsBuffer.getMappedRange());
         for (let i = 0; i < this.numLightSources; ++i) {
-            const position = vec3.fromValues(
+            const position = [
                 Math.random() * 2 - 1,
                 Math.random() * 2 - 1,
                 Math.random() * 2 - 1,
-            );
+            ];
             const intensity = Math.random() * 2;
-            const color = vec3.fromValues(
+            const color = [
                 Math.random(),
                 Math.random(),
                 Math.random(),
-            );
+            ];
             const offset = i * pointLightStrideInElements;
             pointLightsBufferRange.set(position, offset);
             pointLightsBufferRange.set([intensity], offset + 3);

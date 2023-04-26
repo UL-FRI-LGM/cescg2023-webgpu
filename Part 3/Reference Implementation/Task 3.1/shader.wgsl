@@ -46,16 +46,16 @@ fn vertex(input : VertexInput) -> VertexOutput {
 }
 
 // Task 3.1: compute diffuse lighting (Lambertian reflection)
-fn compute_diffuse_lighting(normal: vec3f, light_direction: vec3f) -> f32 {
-    return max(0.0, dot(normal, light_direction));
+fn computeDiffuseLighting(normal: vec3f, lightDirection: vec3f) -> f32 {
+    return max(0, dot(normal, lightDirection));
 }
 
 @fragment
 fn fragment(input : FragmentInput) -> FragmentOutput {
     // Task 3.1: compute diffuse lighting (Lambertian reflection)
     let albedo = textureSample(uTexture, uSampler, input.texcoord).rgb;
-    let light_direction = normalize(vec3<f32>(0.0, 1.0, 1.0));
-    let color = vec4f(compute_diffuse_lighting(input.normal, light_direction) * albedo, 1.0);
+    let lightDirection = normalize(vec3<f32>(0, 1, 1));
+    let color = vec4f(computeDiffuseLighting(input.normal, lightDirection) * albedo, 1);
     return FragmentOutput(
         color,
     );

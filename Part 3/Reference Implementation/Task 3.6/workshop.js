@@ -6,9 +6,6 @@ import { Loader } from '../../../common/framework/util/loader.js';
 import { Model } from '../../../common/framework/util/model.js';
 import { OrbitCamera } from '../../../common/framework/util/orbit-camera.js';
 
-// Task 3.3: import vec3
-import { vec3 } from '../../../lib/gl-matrix-module.js';
-
 export class Workshop extends Sample {
     async init() {
         this.assetLoader = new Loader({basePath: '../../../common/assets'});
@@ -111,17 +108,17 @@ export class Workshop extends Sample {
         });
         const pointLightsBufferRange = new Float32Array(this.pointlightsBuffer.getMappedRange());
         for (let i = 0; i < numLightSources; ++i) {
-            const position = vec3.fromValues(
+            const position = [
                 Math.random() * 2 - 1,
                 Math.random() * 2 - 1,
                 Math.random() * 2 - 1,
-            );
+            ];
             const intensity = Math.random() * 2;
-            const color = vec3.fromValues(
+            const color = [
                 Math.random(),
                 Math.random(),
                 Math.random(),
-            );
+            ];
             const offset = i * pointLightStrideInElements;
             pointLightsBufferRange.set(position, offset);
             pointLightsBufferRange.set([intensity], offset + 3);
