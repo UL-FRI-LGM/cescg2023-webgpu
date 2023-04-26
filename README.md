@@ -21,9 +21,9 @@ Three things:
     * Option 1: [https://download-chromium.appspot.com/](https://download-chromium.appspot.com/)
     * Option 2: [https://github.com/scheib/chromium-latest-linux](https://github.com/scheib/chromium-latest-linux) then update.sh
   * On Ubuntu 22.04: Don’t use snap / apt version
-  * Enable WebGPU (#enable-unsafe-webgpu) and Vulkan (#enable-vulkan) backend via chrome://flags then restart browser
-  * If it does not work, check chrome://gpu and maybe [https://toji.github.io/webgpu-test/](https://toji.github.io/webgpu-test/)
-  * If it still does not work, use swiftshader
+  * Enable WebGPU (`#enable-unsafe-webgpu`) and Vulkan (`#enable-vulkan`) backend via `chrome://flags` then restart browser
+  * To see if it works, check `chrome://gpu` and/or [https://toji.github.io/webgpu-test/](https://toji.github.io/webgpu-test/)
+  * If does not work, use the built-in software renderer SwiftShader via the commandline flag `--use-webgpu-adapter=swiftshader`
 
 ### Local server
 
@@ -42,10 +42,10 @@ Three things:
 
 During the four parts of this workshop you're going to solve tasks in order to learn how to use the WebGPU API.
 For each part, you'll find the task descriptions as well as the respective reference implementation in its respective folder:
-* [Part 1](./Part 1/Task Description.md)
-* [Part 2](./Part 2/Task Description.md)
-* [Part 3](./Part 3/Task Description.md)
-* [Part 4](./Part 4/Task Description.md)
+* [Part 1](Part%201/Task%20Description.md)
+* [Part 2](Part%202/Task%20Description.md)
+* [Part 3](Part%203/Task%20Description.md)
+* [Part 4](Part%204/Task%20Description.md)
 
 You can also check out the reference implementations in the browser.
 Start a server in the project's root directory and navigate to [reference implementations.html](reference-implementations.html).
