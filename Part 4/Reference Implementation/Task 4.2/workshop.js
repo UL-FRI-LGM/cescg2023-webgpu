@@ -180,7 +180,6 @@ export class Workshop extends Sample {
                 // uniform buffer
                 {
                     binding: 0,
-                    // Task 3.6: make the uniform buffer visible in the fragment stage
                     visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
                     buffer: {},
                 },
@@ -196,7 +195,6 @@ export class Workshop extends Sample {
                     visibility: GPUShaderStage.FRAGMENT,
                     sampler: {},
                 },
-                // Task 3.3: add the storage buffer to our explicitly defined bind group layout
                 // storage buffer
                 {
                     binding: 3,
@@ -260,7 +258,6 @@ export class Workshop extends Sample {
                 {binding: 0, resource: {buffer: this.uniformBuffer}},
                 {binding: 1, resource: this.texture.createView()},
                 {binding: 2, resource: this.sampler},
-                // Task 3.3: add storage buffer binding to bind group
                 {binding: 3, resource: {buffer: this.pointlightsBuffer}},
             ]
         });

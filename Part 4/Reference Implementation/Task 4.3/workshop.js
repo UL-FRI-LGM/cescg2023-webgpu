@@ -6,6 +6,9 @@ import { Loader } from '../../../common/framework/util/loader.js';
 import { Model } from '../../../common/framework/util/model.js';
 import { OrbitCamera } from '../../../common/framework/util/orbit-camera.js';
 
+// Task 4.3: import LightSourceModel
+import { LightSourceModel } from '../../../common/framework/util/light-source-model.js';
+
 export class Workshop extends Sample {
     async init() {
         this.assetLoader = new Loader({basePath: '../../../common/assets'});
@@ -13,6 +16,9 @@ export class Workshop extends Sample {
         this.camera = new OrbitCamera(this.canvas);
         this.model = new Model(await this.assetLoader.loadModel('models/bunny.json'));
         this.cullBackFaces = true;
+
+        // Task 4.1: add a model for rendering our light sources
+        this.lightSourceModel = new LightSourceModel(await this.assetLoader.loadModel('models/sphere.json'));
 
         await this.#initResources();
         await this.#initPipelines();
@@ -36,7 +42,9 @@ export class Workshop extends Sample {
             ...this.camera.position, 0.0,
             ...this.camera.view,
             ...this.camera.projection,
-            ...this.model.modelMatrix
+            ...this.model.modelMatrix,
+            // Task 4.3: upload our light source model's transform matrix to the uniform buffer
+            ...this.lightSourceModel.modelMatrix,
         ]);
         this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformArray);
 
@@ -46,8 +54,9 @@ export class Workshop extends Sample {
         const animateLightsPass = commandEncoder.beginComputePass();
         animateLightsPass.setPipeline(this.animateLightsPipelineData.pipeline);
         animateLightsPass.setBindGroup(0, this.animateLightsPipelineData.bindGroup);
+        // Task 4.2: use the new workgroup size we defined for our pipeline when dispatching workgroups
         animateLightsPass.dispatchWorkgroups(
-            Math.ceil(this.numLightSources / 64)
+            Math.ceil(this.numLightSources / this.animateLightsPipelineData.workGroupSize.x)
         );
         animateLightsPass.end();
 
@@ -61,6 +70,17 @@ export class Workshop extends Sample {
         renderPass.setVertexBuffer(0, this.vertexBuffer);
         renderPass.setIndexBuffer(this.indexBuffer, this.model.indexType);
         renderPass.drawIndexed(this.model.numIndices);
+
+        // Task 4.3: after drawing the model, set the render pass encoder's pipeline to our light source pipeline
+        renderPass.setPipeline(this.renderLightSourcesPipeline);
+
+        // Task 4.3: set the vertex and index buffers of the render pass to our light source models' buffers
+        renderPass.setVertexBuffer(0, this.lightSourceVertexBuffer);
+        renderPass.setIndexBuffer(this.lightSourceIndexBuffer, this.lightSourceModel.indexType);
+
+        // Task 4.3: use instanced rendering to render all of our light sources with one draw call
+        renderPass.drawIndexed(this.lightSourceModel.numIndices, this.numLightSources);
+
         renderPass.end();
 
         this.device.queue.submit([commandEncoder.finish()]);
@@ -93,7 +113,8 @@ export class Workshop extends Sample {
 
         // Prepare uniform buffer
         this.uniformBuffer = this.device.createBuffer({
-            size: 208,
+            // Task 4.3: increase the size of our uniform buffer by 64 to hold one additional mat4x4<f32>
+            size: 272,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
 
@@ -107,7 +128,7 @@ export class Workshop extends Sample {
         // Create light source buffer
         const pointLightStrideInElements = 8; // 3 (position) + 1 (radius) + 3 (color) + 1 (padding)
         // Task 4.1: store number of light sources in the Sample
-        this.numLightSources = 20;
+        this.numLightSources = 20;//0;
         this.pointlightsBuffer = this.device.createBuffer({
             size: Float32Array.BYTES_PER_ELEMENT * pointLightStrideInElements * this.numLightSources,
             usage: GPUBufferUsage.STORAGE,
@@ -132,17 +153,28 @@ export class Workshop extends Sample {
             pointLightsBufferRange.set(color, offset + 4);
         }
         this.pointlightsBuffer.unmap();
+
+        // Task 4.3: create vertex and index buffers for our light source model
+        this.lightSourceVertexBuffer = this.lightSourceModel.createVertexBuffer(this.device);
+        this.lightSourceIndexBuffer = this.lightSourceModel.createIndexBuffer(this.device);
     }
 
     async #initAnimateLightsPipeline() {
         // Task 4.1: create a compute pipeline to animate the light sources
         const animateLightsShaderCode = await new Loader().loadText('animate-lights.wgsl');
         const animateLightsShaderModule = this.device.createShaderModule({code: animateLightsShaderCode});
+
+        // Task 4.2: override the shader's override constant
+        const animateLightsWorkGroupSize = { x: 128 };
         const animateLightsPipeline = this.device.createComputePipeline({
             layout: 'auto',
             compute: {
                 module: animateLightsShaderModule,
                 entryPoint: 'compute',
+                // Task 4.2: override the shader's override constant
+                constants: {
+                    WORKGROUP_SIZE: animateLightsWorkGroupSize.x,
+                },
             }
         });
 
@@ -155,9 +187,11 @@ export class Workshop extends Sample {
         });
 
         // Task 4.1: store animation pipeline data in helper object
+        // Task 4.2: store the workgroup size in the helper object
         this.animateLightsPipelineData = {
             pipeline: animateLightsPipeline,
             bindGroup: animateLightsBindGroup,
+            workGroupSize: animateLightsWorkGroupSize,
         }
     }
 
@@ -188,7 +222,8 @@ export class Workshop extends Sample {
                 // storage buffer
                 {
                     binding: 3,
-                    visibility: GPUShaderStage.FRAGMENT,
+                    // Task 4.3: make the storage buffer visible in the vertex stage, so we can use the same bind group layout (and the same bind group) for rendering our light sources
+                    visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
                     buffer: {
                         type: 'read-only-storage', // allowed values are 'uniform' (default), 'storage', and 'read-only-storage'
                     }
@@ -268,5 +303,31 @@ export class Workshop extends Sample {
         };
 
         await this.#initAnimateLightsPipeline();
+
+        // Task 4.3: add a new pipeline for rendering our light sources. Its descriptor is almost the same as for the
+        //   other pipeline. It only uses another shader module.
+        //   We'll use the same bind group and attachments for this pipeline, so we don't need to create anything else here.
+        const renderLightSourcesCode = await new Loader().loadText('light-sources.wgsl');
+        const renderLightSourcesShaderModule = this.device.createShaderModule({ code: renderLightSourcesCode });
+        this.renderLightSourcesPipeline = this.device.createRenderPipeline({
+            ...pipelineDescriptorBase,
+            primitive: {
+                cullMode: 'back',
+            },
+            vertex: {
+                module: renderLightSourcesShaderModule,
+                entryPoint: 'vertex',
+                buffers: [Vertex.vertexLayout()],
+            },
+            fragment: {
+                module: renderLightSourcesShaderModule,
+                entryPoint: 'fragment',
+                targets: [
+                    {
+                        format: this.gpu.getPreferredCanvasFormat()
+                    }
+                ],
+            },
+        });
     }
 }
