@@ -6,12 +6,14 @@ Then, we'll take a look at instanced drawing to make our light sources visible o
 
 ## Introduction to Compute Shaders
 
-Like vertex and fragment shader stages, a compute shader stage needs an entry point annotated with `@compute` attribute.
+Like vertex and fragment shader stages, a compute shader stage needs an entry point.
+This entry point must be annotated with the `@compute` attribute.
 While vertex and fragment shaders are invoked via draw calls, compute shaders are invoked via dispatching workgroups.
-Each workgroup in a dispatch starts [a number of threads](https://www.w3.org/TR/webgpu/#dom-supported-limits-maxcomputeinvocationsperworkgroup) that is defined in the shader.
-Each thread has a local id that uniquely identifies it within the workgroup, as well as a global id that uniquely identifies it within all workgroups.
-The strategy used to assign thread ids is defined in the shader, using the [required `@workgroup_size(x[,y[,z]])` entry point attribute](https://www.w3.org/TR/WGSL/#entry-point-attributes).
-For example, you can imagine that the local invocation id for each thread in a workgroup is computed like this:
+Each workgroup in a dispatch starts [a number of threads](https://www.w3.org/TR/webgpu/#dom-supported-limits-maxcomputeinvocationsperworkgroup) in a 3D grid layout.
+The number of threads in a workgroup as well as its layout are defined in the shader itself, using the [required `@workgroup_size(x[,y[,z]])` entry point attribute](https://www.w3.org/TR/WGSL/#entry-point-attributes).
+The 3D grid layout becomes apparent when looking at a thread's invocation id.
+Each thread has a local invocation id that uniquely identifies it within the workgroup, as well as a global one that uniquely identifies it within all workgroups.
+You can imagine that the local invocation id for each thread in a workgroup is computed like this:
 ```wgsl
 for (var x = 0; x < workGroupSize.x; ++x) {
     for (var y = 0; y < workGroupSize.y; ++y) {
@@ -21,13 +23,6 @@ for (var x = 0; x < workGroupSize.x; ++x) {
     }
 }
 ```
-
-On the JavaScript side, workgroups can be dispatched using the [dispathWorkgroups](https://www.w3.org/TR/webgpu/#dom-gpucomputepassencoder-dispatchworkgroups)
-or [dispatchWorkgroupsIndirect](https://www.w3.org/TR/webgpu/#dom-gpucomputepassencoder-dispatchworkgroupsindirect) methods
-of a [GPUComputePassEncoder](https://www.w3.org/TR/webgpu/#gpucomputepassencoder) created from a [GPUCommandEncoder](https://www.w3.org/TR/webgpu/#gpucommandencoder).
-We'll only use `dispathWorkgroups` in this workshop. Its arguments are the number of workgroups to dispatch in each dimension (x, y, and z).
-For example, when dispatching 6 workgroups in the x dimension (`encoder.dispatchWorkgroups(6)`), using a compute shader
-with a workgroup size of 64 in x (`@workgroup_size(64)`), a total of `6 * 64 = 384` threads will be executed on the GPU.
 
 When compute shaders are used to process an array of data, each thread typically only processes a single (or a small number of) element(s) in the array.
 In such cases, a thread's global invocation id is often used as an index into the array to process.
@@ -43,7 +38,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
     // do something with the data ...
 }
 ```
-However, since instead of telling the `GPUComputePassEncoder` the exact number of threads we want to use, we dispatch workgroups consisting of multiple threads depending on the shaders workgroup size.
+However, on the JavaScript side, only whole workgroups are be dispatched (e.g
+, using the [dispatchWorkgroups](https://www.w3.org/TR/webgpu/#dom-gpucomputepassencoder-dispatchworkgroups) method
+of a [GPUComputePassEncoder](https://www.w3.org/TR/webgpu/#gpucomputepassencoder)).
+For example, when dispatching 6 workgroups in the x dimension (`encoder.dispatchWorkgroups(6)`), using a compute shader
+with a workgroup size of 64 in x (`@workgroup_size(64)`), a total of `6 * 64 = 384` threads will be executed on the GPU.
 In cases where the array length is not exactly divisible by the workgroup size, we thus spawn more threads than elements in the array.
 To avoid out-of-bounds accesses, it is usually a good idea to test if the thread's id is within the array's bounds, and terminate the thread if it is not, e.g.:
 ```wgsl
@@ -56,9 +55,9 @@ With that covered, you should know everything you need to write your first compu
 
 ## Task 4.1: Animate Light Sources in a Compute Shader
 In Part 3, we've created a storage buffer to pass our light sources to the GPU. This will come in handy now, as we're
-going to use a compute shader to change positions of our light sources.
+going to use a compute shader to move those light sources around.
 
-* As a first step, create a new shader file in the `shaders` directory and name it `animate-lights.wgsl`.
+As a first step, create a new shader file in the `shaders` directory and name it `animate-lights.wgsl`:
 * Define the entry point to our compute shader with a workgroup size of 64 in the x dimension, and none (i.e., implicitly 1) in y and z dimensions. 
   In our compute shader, we'll spawn a thread for each light source in the storage buffer and use the thread's global id to determine which light source it should process.
   A thread's global id can be accessed in the shader via the [built-in `global_invocation_id`](https://www.w3.org/TR/WGSL/#builtin-values).
