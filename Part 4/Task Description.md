@@ -26,7 +26,7 @@ for (var x = 0; x < workGroupSize.x; ++x) {
 
 When compute shaders are used to process an array of data, each thread typically only processes a single (or a small number of) element(s) in the array.
 In such cases, a thread's global invocation id is often used as an index into the array to process.
-It can be accessed via the [built-in `global_invocation_id`](https://www.w3.org/TR/WGSL/#builtin-values)., e.g.:
+It can be accessed via the [built-in `global_invocation_id`](https://www.w3.org/TR/WGSL/#builtin-values), e.g.:
 ```wgsl
 @group(0) @binding(0) var<storage> data: array<u32>;
 
@@ -58,10 +58,9 @@ In Part 3, we've created a storage buffer to pass our light sources to the GPU. 
 going to use a compute shader to move those light sources around.
 
 As a first step, create a new shader file in the `shaders` directory and name it `animate-lights.wgsl`:
-* Define the entry point to our compute shader with a workgroup size of 64 in the x dimension, and none (i.e., implicitly 1) in y and z dimensions. 
-  In our compute shader, we'll spawn a thread for each light source in the storage buffer and use the thread's global id to determine which light source it should process.
-  A thread's global id can be accessed in the shader via the [built-in `global_invocation_id`](https://www.w3.org/TR/WGSL/#builtin-values).
-  Since our storage buffer contains a 1D array, we'll only specify a 1D workgroup size, and use the x component of the `global_invocation_id`:
+* Define the entry point to the new compute shader with a workgroup size of 64 in the x dimension, and leave out the y and z dimensions (defaults to 1). 
+  We'll spawn a thread for each light source in the storage buffer and use the thread's global id to determine which light source it should process.
+  We'll use the x component of the [built-in `global_invocation_id`](https://www.w3.org/TR/WGSL/#builtin-values) as the thread's id and an index into our light source buffer:
 ```wgsl
 @compute
 @workgroup_size(64)
@@ -90,8 +89,8 @@ struct PointLight {
     direction: u32,
 }
 ```
-* Add the storage buffer containing our light sources as a binding for our compute shader.
-  Unlike earlier, we want our compute shader to make changes to the buffer's contents, so we need to specify it as `read_write`:
+* Add the storage buffer containing our light sources as a binding for the compute shader.
+  Unlike earlier, we want the compute shader to make changes to the buffer's contents, so we need to specify it as `read_write`:
 ```wgsl
 @group(0) @binding(0) var<storage, read_write> uLights : array<PointLight>;
 ```
@@ -103,7 +102,7 @@ struct PointLight {
 @workgroup_size(64)
 fn compute(@builtin(global_invocation_id) global_id: vec3u) {
     // terminate the thread if its global id is outside the light buffer's bounds
-    if global_id.x  >= arrayLength(&uLights) {
+    if global_id.x >= arrayLength(&uLights) {
         return;
     }
     // move light sources ...
@@ -112,7 +111,8 @@ fn compute(@builtin(global_invocation_id) global_id: vec3u) {
 * Add the logic to move light sources up or down between a minimum and maximum y position of 0 and 1 respectively.
   We'll use the `direction` member of a `PointLight` to determine if it is going up (`direction == 1`) or down (`direction == 0`).
   Additionally, we'll add a constant movement speed.
-  If a light source reached either the minimum or maximum y position, we'll change the direction of the light source:
+  If a light source reached either the minimum or maximum y position, we'll change the direction of the light source for subsequent frames
+  by setting the `direction`in the buffer to the opposite direction:
 ```wgsl
 const DOWN: u32 = 0u;
 const UP: u32 = 1u;
@@ -159,7 +159,7 @@ const animateLightsPipeline = this.device.createComputePipeline({
     }
 });
 ```
-* Then add a bind group for our new pipeline:
+* Then create a bind group for the new pipeline:
 ```js
 const animateLightsBindGroup = this.device.createBindGroup({
     layout: animateLightsPipeline.getBindGroupLayout(0),
@@ -176,7 +176,7 @@ this.animateLightsPipelineData = {
 }
 ```
 * Finally, in `render` encode our new compute pipeline before submitting the command encoder to the queue.
-  To determine the number of workgroups we need to dispatch by dividing the number of light source by the workgroup size of our compute shader:
+  Determine the number of workgroups to dispatch by dividing the number of light sources by the workgroup size defined in the compute shader (`animate-lights.wgsl`):
 ```js
 const animateLightsPass = commandEncoder.beginComputePass();
 animateLightsPass.setPipeline(this.animateLightsPipelineData.pipeline);
@@ -187,11 +187,11 @@ animateLightsPass.dispatchWorkgroups(
 animateLightsPass.end();
 ```
 
-And that's it! You've made your first steps in the world of WebGPU compute shaders.
+And that's it! You've made your first steps into the world of WebGPU compute shaders.
 
 ## 4.2 Control the Workgroup Size from the JavaScript Side
-Having to maintain the workgroup size of a compute shader not only in the shader file but also on the JavaScript side can easily lead to errors.
-It would be nice to have this only in one place, preferably on the JavaScript side, where we can control it.
+Having to maintain the workgroup size of a compute shader in two places - the shader and the JavaScript file - can easily lead to errors.
+It would be nice to have this only in one place - preferably on the JavaScript side, where we can control it.
 Luckily, there is the WGSL / WebGPU concept of [override declarations](https://www.w3.org/TR/WGSL/#override-decls) to define constant values in shaders that can be overridden by a pipeline at creation time.
 In this task, we're going to use an `override` declaration to set the workgroup size from our `Workshop` class.
 
@@ -224,7 +224,7 @@ const animateLightsPipeline = this.device.createComputePipeline({
     }
 });
 ```
-* Then add the workgroup size to our `animateLightsPipelineData` helper object, so we be sure to use the same workgroup size in `render` later:
+* Then store the workgroup size in the `animateLightsPipelineData` helper object, so we can be sure to use the same workgroup size in `render` later:
 ```js
 this.animateLightsPipelineData = {
     pipeline: animateLightsPipeline,
@@ -232,7 +232,7 @@ this.animateLightsPipelineData = {
     workGroupSize: animateLightsWorkGroupSize,
 }
 ```
-* Finally, use the workgroup size we defined for our pipeline in `render`:
+* Finally, use the new workgroup size in `render`:
 ```js
 const animateLightsPass = commandEncoder.beginComputePass();
 // ...
@@ -242,10 +242,12 @@ animateLightsPass.dispatchWorkgroups(
 animateLightsPass.end();
 ```
 
+And voilà: the workgroup size used for the pipeline can now be controlled (at pipeline creation time) by touching only a single variable.
+
 ## Task 4.3: Render Light Sources
 Our light sources are moving up and down now, but it's hard to tell where they are exactly.
-In this task, let's make our light sources visible by rendering small spheres to represent them.
-We'll use the same object - a sphere - for each of them. This gives as a perfect opportunity to introduce [instanced
+In this task, let's make our light sources visible by rendering small objects to represent them.
+We'll use the same object - a sphere in our reference implementation - for each of them. This gives us a perfect opportunity to introduce [instanced
 drawing](https://en.wikipedia.org/wiki/Geometry_instancing)!
 
 In instanced drawing, multiple copies of the same object are drawn with just a single draw call.
@@ -257,8 +259,8 @@ to use the one belonging to the current instance using its index:
 @group(0) @binding(0) var<storage> matrices: array<mat4x4<f32>>;
 
 @vertex
-fn main(@builtin(instance_index) instance: u32) -> @builtin(position) vec4f {
-    return matrices[instance_index] * vec4f(1.0);
+fn main(@builtin(instance_index) instance: u32, @location(0) position: vec4f) -> @builtin(position) vec4f {
+    return matrices[instance_index] * position;
 }
 ```
 In this task, all instance related data we need is already in the storage buffer containing our light sources.
@@ -269,13 +271,13 @@ renderPass.drawIndexed(indexCount, instanceCount);
 ```
 
 With that out of the way, let's get started and render our light sources!
-We'll use the helper class `LightSourceModel` provided by our framework. It is very similar to our `Model` class but automatically
-scales down the model in its constructor. We'll need to apply this scaling to each instance, so we'll add the light source model's
-model matrix to our uniform buffer. We'll then create a new shader and corresponding pipeline for rendering our light sources, and
-use the new pipeline in our render pass.
+We'll use the helper class `LightSourceModel` provided by our framework. It is very similar to our `Model` class but applies
+a scaling operation to its model matrix in its constructor. We'll need to apply this scaling to each instance, so we'll add
+the `LightSourceModel` 's model matrix to our uniform buffer. We'll then create a new shader and a corresponding pipeline for
+rendering our light sources, and use the new pipeline in our render pass.
 
 Start with the shader in `shader.wgsl`:
-* Add a new `mat4x4<f32>` to our `Uniforms` struct:
+* Add a new `mat4x4<f32>` to the `Uniforms` struct:
 ```wgsl
 struct Uniforms {
     camera: Camera,
@@ -285,10 +287,10 @@ struct Uniforms {
 ```
 
 Then we'll create a new shader in the `shaders` directory and call it `light-sources.wgsl`:
-* Copy the `Camera`, `Uniforms`, and `PointLight` structs from `shader.wgsl`.
+* Copy the `Camera`, `Uniforms`, and `PointLight` structs from `shader.wgsl` to the new shader.
 * Copy all binding definitions from `shader.wgsl`.
-  For simplicity, we'll use the same bind group & pipeline layout, and the same bind group for our new shader.
-  Our new shader won't use the texture and sampler bindings, so you can also comment them out as long as the binding
+  For simplicity, we'll use the same bind group layout, pipeline layout, and bind group for both render pipelines.
+  The new shader won't use the texture and sampler bindings, however, so you can also comment them out as long as the binding
   numbers of the other two bindings remain the same:
 ```wgsl
 // Although we use only use the uniforms and light sources, we'll still use the same bind group object.
@@ -299,7 +301,7 @@ Then we'll create a new shader in the `shaders` directory and call it `light-sou
 @group(0) @binding(3) var<storage, read> uLights : array<PointLight>;
 ```
 * Create the interface for the vertex stage of the new shader.
-  We'll use the built-in `instance_index` and the position attribute at `@location(0)` of our vertex buffer as input.
+  We'll use the built-in `instance_index` and the position attribute at `@location(0)` of a vertex buffer as input.
   As output, we'll only need a position and a color:
 ```wgsl
 struct VertexInput {
@@ -314,7 +316,7 @@ struct VertexOutput {
 ```
 * Add an entry point for the vertex stage.
   We'll compute the position of each instance by first scaling down the vertex using the `light` matrix in our uniform
-  buffer to scale it down, and then we'll translate it using the light source's position:
+  buffer to scale it down, and then we'll translate it using the light source's position stored in the storage buffer:
 ```wgsl
 @vertex
 fn vertex(input: VertexInput) -> VertexOutput {
@@ -328,7 +330,7 @@ fn vertex(input: VertexInput) -> VertexOutput {
 ```
 * Finally, add a fragment stage for our new shader.
   We really only care about the color here, so it's a bit of an overkill to define extra structs.
-  Instead, we can simply use the `@location` attribute in the function signature directly:
+  Instead, we can simply use the `@location` attribute for both the input and output in the function signature directly:
 ```wgsl
 @fragment
 fn fragment(@location(0) color: vec4f) -> @location(0) vec4f {
@@ -337,10 +339,9 @@ fn fragment(@location(0) color: vec4f) -> @location(0) vec4f {
 ```
 
 Make the following changes to our `Workshop` class:
-* In `#initResources`, increase the size of our uniform buffer by another 64 bytes to hold our new light source model's model matrix.
 * Import the `LightSourceModel` helper class:
 ```js
-import { LightSourceModel } from '../../../common/framework/util/light-source-model.js';
+import { LightSourceModel } from './common/framework/util/light-source-model.js';
 ```
 * In `init`, create a `LightSourceModel` instance.
   We'll use a sphere in our reference implementation, but feel free to use a different model:
@@ -352,6 +353,7 @@ this.lightSourceModel = new LightSourceModel(await this.assetLoader.loadModel('m
 this.lightSourceVertexBuffer = this.lightSourceModel.createVertexBuffer(this.device);
 this.lightSourceIndexBuffer = this.lightSourceModel.createIndexBuffer(this.device);
 ```
+* In `#initResources`, increase the size of the uniform buffer by another 64 bytes to hold the new light source model's model matrix.
 * In `render`, add the light source model's model matrix to the uniform buffer:
 ```js
 const uniformArray = new Float32Array([
@@ -360,6 +362,7 @@ const uniformArray = new Float32Array([
 ]);
 ```
 * In `#initPipelines`, change the bind group layout so that the storage buffer containing our light sources is visible in the vertex stage.
+  Remember: we're using the same bind group layout for both render pipelines, and in the new shader we're accessing point light data in the vertex stage.
 * Then create a new shader module and pipeline using our `light-sources.wgsl` shader.
   This pipeline is almost the same as our other render pipeline. The only difference is the shader module used:
 ```js
@@ -368,7 +371,6 @@ const uniformArray = new Float32Array([
 const renderLightSourcesCode = await new Loader().loadText('shaders/light-sources.wgsl');
 const renderLightSourcesShaderModule = this.device.createShaderModule({ code: renderLightSourcesCode });
 this.renderLightSourcesPipeline = this.device.createRenderPipeline({
-    layout: pipelineLayout,
     vertex: {
         module: renderLightSourcesShaderModule,
         entryPoint: 'vertex',
@@ -379,18 +381,12 @@ this.renderLightSourcesPipeline = this.device.createRenderPipeline({
         entryPoint: 'fragment',
         targets: [{ format: this.gpu.getPreferredCanvasFormat() }],
     },
-    depthStencil: {
-        depthWriteEnabled: true,
-        depthCompare: 'less',
-        format: 'depth24plus',
-    },
-    primitive: {
-        cullMode: 'back',
-    },
+    // ...
 });
 ```
-* In `render`, use the new pipeline in the `renderPass` after the previous `drawIndexed` call and before the `end` call.
-  This switches the active pipeline on our `renderPass`:
+* In `render`, use the new pipeline in the `renderPass` after the previous `drawIndexed` call but before the `end` call.
+  This switches the active pipeline on our `renderPass`. Note that previous settings remain the same: the vertex and index buffers,
+  as well as the bind group are still the same. If we issued a draw call now, we would draw the other model now.
 ```js
 // ...
 renderPass.drawIndexed(this.model.numIndices);
