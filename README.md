@@ -1,5 +1,5 @@
-# WebGPU Examples
-A collection of WebGPU examples for the CESCG 2023 conference workshop.
+# Introduction to WebGPU
+Task descriptions and reference implementations for the "Introduction to WebGPU" workshop at [CESCG 2023](https://cescg.org/our-services/introduction-to-webgpu/).
 
 ## You will need
 
