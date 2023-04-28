@@ -21,7 +21,7 @@ fn computeDiffuseLighting(normal: vec3f, lightDirection: vec3f) -> f32 {
 fn fragment(input : FragmentInput) -> FragmentOutput {
     let albedo = textureSample(uTexture, uSampler, input.texcoord).rgb;
     let lightDirection = normalize(vec3<f32>(0, 1, 1));
-    let color = vec4f(computeDiffuseLighting(input.normal, lightDirection) * albedo, 1);
+    let color = vec4f(computeDiffuseLighting(normalize(input.normal), lightDirection) * albedo, 1);
     return FragmentOutput(
         color,
     );
@@ -96,7 +96,7 @@ let lightDirection = normalize(LIGHT_SOURCE.position - position);
 * With some fragments being completely outside the light's radius, our scene is getting rather dark. Optionally, add an ambient light source to our shader:
 ```wgsl
 const AMBIENT_LIGHT: vec3f = vec3f(0.1);
-let color = vec4f(AMBIENT_LIGHT + computeLighting(input.position, input.normal, albedo), 1);
+let color = vec4f(AMBIENT_LIGHT + computeLighting(input.position, normalize(input.normal), albedo), 1);
 ```
 
 ## Task 3.3: Upload a Light Source via a Storage Buffer
@@ -139,7 +139,7 @@ fn computeLighting(position: vec3f, normal: vec3f, albedo: vec3f, light_index: u
 ```wgsl
 var color = vec4f(AMBIENT_LIGHT, 1);
 for (var i = 0u; i < arrayLength(&uLights); i += 1u) {
-    color += vec4f(computeLighting(input.position, input.normal, albedo, i), 0);
+    color += vec4f(computeLighting(input.position, normalize(input.normal), albedo, i), 0);
 }
 ```
 
